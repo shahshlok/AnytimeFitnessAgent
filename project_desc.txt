@@ -1,0 +1,88 @@
+I'll help you explore and analyze the codebase. Let me start by looking at the directory structure and then dive into the specific files.
+
+Ran tool
+Let me examine the main `app.ipynb` file to understand what the application does.
+
+Read file: app.ipynb
+Let me also check what's in the "Scraping Data" directory since it seems to contain important content files.
+
+Ran tool
+Based on my analysis, here's a detailed report of what's going on in this codebase:
+
+### Project Overview
+This is an AI-powered virtual receptionist/assistant for Anytime Fitness India, built using OpenAI's API and a Jupyter notebook interface.
+
+### Main Components
+
+1. **Core Application (`app.ipynb`)**
+   - The application is structured as a Jupyter notebook with several key cells:
+   - Uses OpenAI's API for natural language processing
+   - Implements a vector store for document retrieval
+   - Creates an interactive chat interface
+
+2. **Knowledge Base (`Scraping Data/` directory)**
+   - Contains 17 markdown files with comprehensive information about Anytime Fitness
+   - Files cover various aspects including:
+     - About Us
+     - Equipment and Facility Policy
+     - FAQs
+     - Membership Information
+     - Health and Safety
+     - Privacy Policy
+     - Terms and Conditions
+     - And more
+
+### Technical Implementation
+
+1. **Setup and Configuration**
+   - Uses environment variables for API key management
+   - Implements OpenAI client initialization
+   - Loads documents from the "Scraping Data" directory
+
+2. **Document Processing**
+   - Automatically uploads all markdown files to OpenAI's system
+   - Creates a vector store for efficient document retrieval
+   - Maintains file IDs for reference
+
+3. **Chat Interface**
+   - Implements a continuous chat loop
+   - Uses a sophisticated system prompt that:
+     - Positions the AI as a human receptionist
+     - Enforces professional and friendly communication
+     - Maintains brand consistency
+     - Ensures concise responses
+   - Handles user input and provides appropriate responses
+   - Includes error handling and graceful exit functionality
+
+4. **Response Generation**
+   - Uses GPT-4 for response generation
+   - Integrates with vector store for context-aware responses
+   - Maintains conversation history for context
+   - Formats responses in a user-friendly way
+
+### Key Features
+
+1. **Human-like Interaction**
+   - The system is designed to mimic a human receptionist
+   - Avoids AI-related terminology
+   - Maintains a professional and friendly tone
+
+2. **Knowledge Integration**
+   - Seamlessly integrates information from multiple documents
+   - Provides accurate, context-aware responses
+   - Gracefully handles queries outside its knowledge base
+
+3. **Error Handling**
+   - Includes comprehensive error handling
+   - Provides user-friendly error messages
+   - Maintains conversation flow even when errors occur
+
+### Usage
+The system is designed to:
+1. Start up and initialize the knowledge base
+2. Present a chat interface to users
+3. Process user queries about Anytime Fitness
+4. Provide relevant, accurate responses based on the available documentation
+5. Allow users to exit gracefully using 'exit' or 'quit' commands
+
+This appears to be a well-structured AI assistant that can handle customer inquiries about Anytime Fitness, providing accurate information while maintaining a professional and friendly demeanor. The system is particularly focused on providing a human-like experience while ensuring accurate information delivery from the company's official documentation.
