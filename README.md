@@ -1,5 +1,3 @@
-# Anytime Fitness Agent
-
 ## Project Overview
 This project, the "Anytime Fitness Agent," is an intelligent system designed to interact with and process information related to Anytime Fitness. It utilizes **Firecrawl** for efficient web scraping, converting web pages into structured markdown files. The scraped data undergoes a crucial cleaning process powered by **Artificial Intelligence**, with strict protocols to exclude sensitive documents like "Terms of Use" and "Privacy Policy" from modification. The cleaned markdown files are then uploaded to an **OpenAI vector store**, forming the knowledge base for a sophisticated **chatbot** capable of providing information and answering queries based on the processed data. The project includes Jupyter notebooks for exploratory data analysis and development, alongside a final Python script for core operations.
 
