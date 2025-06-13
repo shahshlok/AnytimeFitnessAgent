@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 function App() {
   const [messages, setMessages] = useState([
@@ -72,7 +74,15 @@ function App() {
                   : 'bg-gray-700 text-gray-100'
               }`}
             >
-              {message.content}
+              {message.role === 'assistant' ? (
+                <div className="prose prose-invert max-w-none">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {message.content}
+                  </ReactMarkdown>
+                </div>
+              ) : (
+                message.content
+              )}
             </div>
           </div>
         ))}
