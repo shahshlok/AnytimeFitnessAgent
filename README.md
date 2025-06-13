@@ -26,9 +26,8 @@ To set up the project locally, follow these steps:
     ```
 3.  **Install dependencies**:
     ```bash
-    pip install -r requirements.txt
+    pip install openai
     ```
-    *(Note: A `requirements.txt` file is assumed. If not present, you may need to install libraries like `requests`, `BeautifulSoup4`, `pandas`, etc., manually.)*
 
 4.  **Environment Variables**:
     Create a `.env` file in the root directory of the project and add any necessary environment variables (e.g., API keys, credentials). Refer to `.env.example` if available.
