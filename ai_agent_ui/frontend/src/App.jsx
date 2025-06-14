@@ -1,136 +1,28 @@
-import { useState, useEffect, useRef } from 'react'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
-import { SendHorizontal } from 'lucide-react'
+import { useRef } from 'react';
+import Spline from '@splinetool/react-spline';
 
-function App() {
-  const [messages, setMessages] = useState([])
-  const [input, setInput] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
-  const messagesEndRef = useRef(null)
+export default function App() {
+  const spline = useRef();
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  function onLoad(splineApp) {
+    // save the app in a ref for later use
+    spline.current = splineApp;
   }
 
-  useEffect(() => {
-    scrollToBottom()
-  }, [messages])
-
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    if (!input.trim() || isLoading) return
-
-    const userMessage = { role: 'user', content: input }
-    setMessages(prev => [...prev, userMessage])
-    setInput('')
-    setIsLoading(true)
-
-    try {
-      const response = await fetch('http://127.0.0.1:8000/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message: input,
-          history: messages
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to get response')
-      }
-
-      const data = await response.json()
-      setMessages(prev => [...prev, { role: 'assistant', content: data.reply }])
-    } catch (error) {
-      setMessages(prev => [...prev, { 
-        role: 'assistant', 
-        content: 'Sorry, I encountered an error. Please try again.' 
-      }])
-    } finally {
-      setIsLoading(false)
-    }
+  function triggerAnimation() {
+    spline.current.emitEvent('start', '6e2bae06-e4ca-49a8-b06f-1b1694d267f4 ');
   }
 
   return (
-    <div className="bg-white min-h-screen flex items-center justify-center p-4">
-      <div className="bg-gray-50 flex flex-col max-w-4xl w-full h-[95vh] rounded-2xl border border-gray-200 shadow-sm">
-        <header className="p-4 border-b border-gray-200">
-          <h1 className="text-lg font-semibold text-gray-800">Anytime Fitness AI Assistant</h1>
-        </header>
-
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {messages.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-center space-y-4">
-              <h2 className="text-2xl font-semibold text-gray-800">Welcome!</h2>
-              <p className="text-gray-600 max-w-md">
-                Ask me anything about Anytime Fitness. I'm here to help you with your fitness journey!
-              </p>
-            </div>
-          ) : (
-            messages.map((message, index) => (
-              <div
-                key={index}
-                className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
-                <div
-                  className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-                    message.role === 'user'
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-gray-200 text-gray-800'
-                  }`}
-                >
-                  {message.role === 'assistant' ? (
-                    <div className="prose max-w-none prose-p:text-gray-800 prose-li:text-gray-800">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                        {message.content}
-                      </ReactMarkdown>
-                    </div>
-                  ) : (
-                    message.content
-                  )}
-                </div>
-              </div>
-            ))
-          )}
-          {isLoading && (
-            <div className="flex justify-start">
-              <div className="bg-gray-200 text-gray-800 rounded-2xl px-4 py-3">
-                <div className="flex items-center space-x-1">
-                  <div className="h-2 w-2 bg-gray-500 rounded-full animate-bounce [animation-delay:-0.3s]" />
-                  <div className="h-2 w-2 bg-gray-500 rounded-full animate-bounce [animation-delay:-0.15s]" />
-                  <div className="h-2 w-2 bg-gray-500 rounded-full animate-bounce" />
-                </div>
-              </div>
-            </div>
-          )}
-          <div ref={messagesEndRef} />
-        </div>
-
-        <form onSubmit={handleSubmit} className="p-4 border-t border-gray-200">
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Type your message..."
-              className="flex-1 bg-white text-gray-800 rounded-lg px-4 py-2 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              disabled={isLoading}
-            />
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="bg-blue-500 text-white p-2 rounded-full hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <SendHorizontal size={20} />
-            </button>
-          </div>
-        </form>
-      </div>
+    <div>
+      <Spline
+        scene="https://prod.spline.design/DR8QDbJ20prhjdir/scene.splinecode"
+        onLoad={onLoad}
+      />
+      
+      <button type="button" onClick={triggerAnimation}>
+        Trigger Spline Animation
+      </button>
     </div>
-  )
+  );
 }
-
-export default App
