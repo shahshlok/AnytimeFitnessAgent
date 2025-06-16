@@ -130,7 +130,6 @@ async def main():
 
 if __name__ == "__main__":
     try:
-        # This is the standard way to run an async main function from a script
         asyncio.run(main())
     except KeyboardInterrupt:
         print("\nExiting program.")
