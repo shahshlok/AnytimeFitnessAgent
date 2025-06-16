@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { SendHorizontal } from 'lucide-react'
+import { SendHorizontal, Volume2, LoaderCircle } from 'lucide-react'
 
 function App() {
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [playingAudioId, setPlayingAudioId] = useState(null)
   const messagesEndRef = useRef(null)
 
   const scrollToBottom = () => {
@@ -17,16 +18,43 @@ function App() {
     scrollToBottom()
   }, [messages])
 
+  const handlePlayAudio = async (text, messageId) => {
+    setPlayingAudioId(messageId)
+    try {
+      const response = await fetch('http://127.0.0.1:8000/speak', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ text }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to get audio')
+      }
+
+      const audioBlob = await response.blob()
+      const audio = new Audio(URL.createObjectURL(audioBlob))
+      await audio.play()
+    } catch (error) {
+      console.error('Error playing audio:', error)
+    } finally {
+      setPlayingAudioId(null)
+    }
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!input.trim() || isLoading) return
 
-    const userMessage = { role: 'user', content: input }
+    const userMessage = { id: Date.now(), role: 'user', content: input }
     setMessages(prev => [...prev, userMessage])
     setInput('')
     setIsLoading(true)
 
     try {
+      const apiHistory = messages.map(msg => ({ role: msg.role, content: msg.content }));
+
       const response = await fetch('http://127.0.0.1:8000/chat', {
         method: 'POST',
         headers: {
@@ -34,7 +62,7 @@ function App() {
         },
         body: JSON.stringify({
           message: input,
-          history: messages
+          history: apiHistory
         }),
       })
 
@@ -43,9 +71,10 @@ function App() {
       }
 
       const data = await response.json()
-      setMessages(prev => [...prev, { role: 'assistant', content: data.reply }])
+      setMessages(prev => [...prev, { id: Date.now(), role: 'assistant', content: data.reply }])
     } catch (error) {
       setMessages(prev => [...prev, { 
+        id: Date.now(),
         role: 'assistant', 
         content: 'Sorry, I encountered an error. Please try again.' 
       }])
@@ -82,15 +111,30 @@ function App() {
                       : 'bg-gray-200 text-gray-800'
                   }`}
                 >
-                  {message.role === 'assistant' ? (
-                    <div className="prose max-w-none prose-p:text-gray-800 prose-li:text-gray-800">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                        {message.content}
-                      </ReactMarkdown>
-                    </div>
-                  ) : (
-                    message.content
-                  )}
+                  <div className="flex items-start gap-2">
+                    {message.role === 'assistant' ? (
+                      <div className="prose max-w-none prose-p:text-gray-800 prose-li:text-gray-800">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                          {message.content}
+                        </ReactMarkdown>
+                      </div>
+                    ) : (
+                      message.content
+                    )}
+                    {message.role === 'assistant' && (
+                      <button
+                        onClick={() => handlePlayAudio(message.content, message.id)}
+                        className="p-1.5 rounded-full hover:bg-slate-700 transition-colors"
+                        disabled={playingAudioId === message.id}
+                      >
+                        {playingAudioId === message.id ? (
+                          <LoaderCircle size={16} className="animate-spin" />
+                        ) : (
+                          <Volume2 size={16} />
+                        )}
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             ))
