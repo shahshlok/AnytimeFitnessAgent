@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import List, Dict
 import os
@@ -53,6 +54,9 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     reply: str
 
+class SpeakRequest(BaseModel):
+    text: str
+
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
     try:
@@ -100,3 +104,24 @@ async def chat(request: ChatRequest):
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
+
+@app.post("/speak")
+async def text_to_speech(request: SpeakRequest):
+    try:
+        response = client.audio.speech.create(
+            model="tts-1",
+            voice="alloy",
+            input=request.text
+        )
+        
+        return StreamingResponse(
+            content=response.iter_bytes(),
+            media_type="audio/mpeg"
+        )
+        
+    except Exception as e:
+        print(f"Error in text-to-speech endpoint: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="An error occurred while generating speech. Please try again later."
+        )
