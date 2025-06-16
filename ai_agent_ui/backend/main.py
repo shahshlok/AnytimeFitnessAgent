@@ -109,7 +109,7 @@ async def health_check():
 async def text_to_speech(request: SpeakRequest):
     try:
         response = client.audio.speech.create(
-            model="tts-1",
+            model="gpt-4o-mini-tts",
             voice="alloy",
             input=request.text
         )
