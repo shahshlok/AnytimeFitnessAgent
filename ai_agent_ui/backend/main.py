@@ -114,10 +114,10 @@ async def chat(request: ChatRequest):
 @app.post("/chat/voice", response_model=ChatResponse)
 async def chat_voice(file: UploadFile = File(...)):
     try:
-        # Transcribe the audio file using Whisper
+        # Transcribe the audio file using GPT-4o-mini-transcribe
         transcript = client.audio.transcriptions.create(
-            model="whisper-1",
-            file=file.file
+            model="gpt-4o-mini-transcribe",
+            file=(file.filename, file.file)
         )
         
         # Get AI response using the transcribed text

@@ -159,9 +159,9 @@ function App() {
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {messages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center space-y-4">
-              <h2 className="text-2xl font-semibold text-gray-800">Welcome!</h2>
+              <h2 className="text-2xl font-semibold text-gray-800">Welcome</h2>
               <p className="text-gray-600 max-w-md">
-                Ask me anything about Anytime Fitness. I'm here to help you with your fitness journey!
+                Ask me anything about Anytime Fitness!
               </p>
             </div>
           ) : (

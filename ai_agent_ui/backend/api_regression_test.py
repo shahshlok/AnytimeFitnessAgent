@@ -44,8 +44,8 @@ def test_speak_endpoint():
         print("[PASS] /speak endpoint returned audio successfully.")
         
         # Optional: Save the audio file to manually verify it
-        with open("test_output.mp3", "wb") as f:
-            f.write(response.content)
+        # with open("test_output.mp3", "wb") as f:
+        #     f.write(response.content)
         print(" -> Saved sample audio to test_output.mp3")
         
         return True
@@ -57,11 +57,7 @@ def test_chat_voice_endpoint():
     """Tests the /chat/voice endpoint for voice chat functionality."""
     print("--- Running Test: /chat/voice Endpoint ---")
     try:
-        # Correctly find the project root and then the test assets
-        script_dir = os.path.dirname(__file__)
-        project_root = os.path.abspath(os.path.join(script_dir, "..", ".."))
-        test_audio_filename = "test_query.mp3"
-        audio_path = os.path.join(project_root, "test_assets", test_audio_filename)
+        audio_path = "ai_agent_ui/backend/test_query.mp3"  # The file is in the same directory
 
         # Check if test file exists
         if not os.path.exists(audio_path):
