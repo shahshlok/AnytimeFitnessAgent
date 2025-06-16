@@ -96,7 +96,10 @@ function App() {
       }
 
       const data = await response.json()
-      setMessages(prev => [...prev, { id: Date.now(), role: 'assistant', content: data.reply }])
+      const timestamp = Date.now()
+      const userMessage = { id: timestamp, role: 'user', content: data.transcribed_text }
+      const assistantMessage = { id: timestamp + 1, role: 'assistant', content: data.reply }
+      setMessages(prev => [...prev, userMessage, assistantMessage])
     } catch (error) {
       console.error('Error processing voice input:', error)
       setMessages(prev => [...prev, { 

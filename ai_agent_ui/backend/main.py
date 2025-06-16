@@ -54,6 +54,10 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     reply: str
 
+class VoiceChatResponse(BaseModel):
+    transcribed_text: str
+    reply: str
+
 class SpeakRequest(BaseModel):
     text: str
 
@@ -71,7 +75,7 @@ async def get_ai_response(message: str, history: List[Dict[str, str]]) -> str:
 
         # Make API call to OpenAI
         response = client.responses.create(
-            model="gpt-4o-mini",
+            model="gpt-4.1-mini",
             input=conversation_messages,
             tools=[{
                     "type": "file_search",
@@ -111,7 +115,7 @@ async def chat(request: ChatRequest):
             detail="An error occurred while processing your request. Please try again later."
         )
 
-@app.post("/chat/voice", response_model=ChatResponse)
+@app.post("/chat/voice", response_model=VoiceChatResponse)
 async def chat_voice(file: UploadFile = File(...)):
     try:
         # Transcribe the audio file using GPT-4o-mini-transcribe
@@ -122,7 +126,7 @@ async def chat_voice(file: UploadFile = File(...)):
         
         # Get AI response using the transcribed text
         reply = await get_ai_response(transcript.text, [])
-        return ChatResponse(reply=reply)
+        return VoiceChatResponse(transcribed_text=transcript.text, reply=reply)
         
     except Exception as e:
         print(f"Error in voice chat endpoint: {str(e)}")
