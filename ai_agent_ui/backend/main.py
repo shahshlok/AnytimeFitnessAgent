@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -57,8 +57,7 @@ class ChatResponse(BaseModel):
 class SpeakRequest(BaseModel):
     text: str
 
-@app.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest):
+async def get_ai_response(message: str, history: List[Dict[str, str]]) -> str:
     try:
         # Get vector store ID from environment
         vector_store_id = os.getenv("VECTOR_STORE_ID")
@@ -67,8 +66,8 @@ async def chat(request: ChatRequest):
 
         # Construct conversation messages list
         conversation_messages = [{"role": "system", "content": SYSTEM_PROMPT}]
-        conversation_messages.extend(request.history)
-        conversation_messages.append({"role": "user", "content": request.message})
+        conversation_messages.extend(history)
+        conversation_messages.append({"role": "user", "content": message})
 
         # Make API call to OpenAI
         response = client.responses.create(
@@ -90,14 +89,46 @@ async def chat(request: ChatRequest):
         if not response_text:
             raise HTTPException(status_code=500, detail="Failed to get response from AI model")
 
-        return ChatResponse(reply=response_text)
+        return response_text
 
     except Exception as e:
         # Log the error for debugging
+        print(f"Error in get_ai_response: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="An error occurred while processing your request. Please try again later."
+        )
+
+@app.post("/chat", response_model=ChatResponse)
+async def chat(request: ChatRequest):
+    try:
+        reply = await get_ai_response(request.message, request.history)
+        return ChatResponse(reply=reply)
+    except Exception as e:
         print(f"Error in chat endpoint: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail="An error occurred while processing your request. Please try again later."
+        )
+
+@app.post("/chat/voice", response_model=ChatResponse)
+async def chat_voice(file: UploadFile = File(...)):
+    try:
+        # Transcribe the audio file using Whisper
+        transcript = client.audio.transcriptions.create(
+            model="whisper-1",
+            file=file.file
+        )
+        
+        # Get AI response using the transcribed text
+        reply = await get_ai_response(transcript.text, [])
+        return ChatResponse(reply=reply)
+        
+    except Exception as e:
+        print(f"Error in voice chat endpoint: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="An error occurred while processing your voice request. Please try again later."
         )
 
 # Health check endpoint

@@ -3,6 +3,8 @@
 
 import requests
 import json
+import os
+import traceback
 
 # The base URL of our running FastAPI application
 BASE_URL = "http://127.0.0.1:8000"
@@ -51,6 +53,42 @@ def test_speak_endpoint():
         print(f"[FAIL] /speak endpoint test failed: {e}")
         return False
 
+def test_chat_voice_endpoint():
+    """Tests the /chat/voice endpoint for voice chat functionality."""
+    print("--- Running Test: /chat/voice Endpoint ---")
+    try:
+        # Correctly find the project root and then the test assets
+        script_dir = os.path.dirname(__file__)
+        project_root = os.path.abspath(os.path.join(script_dir, "..", ".."))
+        test_audio_filename = "test_query.mp3"
+        audio_path = os.path.join(project_root, "test_assets", test_audio_filename)
+
+        # Check if test file exists
+        if not os.path.exists(audio_path):
+            print(f"[SKIP] Test audio file not found at: {audio_path}")
+            return True
+
+        url = f"{BASE_URL}/chat/voice"
+        
+        # Send the audio file with proper file handling
+        with open(audio_path, "rb") as audio_file:
+            files = {'file': audio_file}
+            response = requests.post(url, files=files)
+        
+        # Check response
+        assert response.status_code == 200 
+        response_json = response.json()
+        assert 'reply' in response_json
+        assert isinstance(response_json['reply'], str)
+        assert len(response_json['reply']) > 0
+        
+        print("[PASS] /chat/voice endpoint processed audio successfully.")
+        return True
+    except Exception as e:
+        print("[FAIL] /chat/voice endpoint test failed with exception:")
+        traceback.print_exc()
+        return False
+
 if __name__ == "__main__":
     print("🚀 Starting API Regression Test Suite...")
     print(f"Targeting API at: {BASE_URL}")
@@ -59,6 +97,7 @@ if __name__ == "__main__":
     tests = [
         test_health_check,
         test_speak_endpoint,
+        test_chat_voice_endpoint,
     ]
     
     results = [test() for test in tests]

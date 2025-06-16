@@ -1,14 +1,17 @@
 import { useState, useEffect, useRef } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { SendHorizontal, Volume2, LoaderCircle } from 'lucide-react'
+import { SendHorizontal, Volume2, LoaderCircle, Mic, Square } from 'lucide-react'
 
 function App() {
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [playingAudioId, setPlayingAudioId] = useState(null)
+  const [isRecording, setIsRecording] = useState(false)
   const messagesEndRef = useRef(null)
+  const mediaRecorderRef = useRef(null)
+  const audioChunksRef = useRef([])
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -40,6 +43,69 @@ function App() {
       console.error('Error playing audio:', error)
     } finally {
       setPlayingAudioId(null)
+    }
+  }
+
+  const handleStartRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      mediaRecorderRef.current = new MediaRecorder(stream)
+      
+      mediaRecorderRef.current.ondataavailable = (event) => {
+        audioChunksRef.current.push(event.data)
+      }
+
+      mediaRecorderRef.current.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
+        sendAudioToApi(audioBlob)
+        audioChunksRef.current = []
+      }
+
+      mediaRecorderRef.current.start()
+      setIsRecording(true)
+    } catch (error) {
+      console.error('Error accessing microphone:', error)
+      setMessages(prev => [...prev, { 
+        id: Date.now(),
+        role: 'assistant', 
+        content: 'Sorry, I could not access your microphone. Please ensure you have granted microphone permissions.' 
+      }])
+    }
+  }
+
+  const handleStopRecording = () => {
+    if (mediaRecorderRef.current) {
+      mediaRecorderRef.current.stop()
+      setIsRecording(false)
+    }
+  }
+
+  const sendAudioToApi = async (audioBlob) => {
+    setIsLoading(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', audioBlob, 'user_voice_query.webm')
+
+      const response = await fetch('http://127.0.0.1:8000/chat/voice', {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to process voice input')
+      }
+
+      const data = await response.json()
+      setMessages(prev => [...prev, { id: Date.now(), role: 'assistant', content: data.reply }])
+    } catch (error) {
+      console.error('Error processing voice input:', error)
+      setMessages(prev => [...prev, { 
+        id: Date.now(),
+        role: 'assistant', 
+        content: 'Sorry, I encountered an error processing your voice input. Please try again.' 
+      }])
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -163,6 +229,18 @@ function App() {
               className="flex-1 bg-white text-gray-800 rounded-lg px-4 py-2 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
               disabled={isLoading}
             />
+            <button
+              type="button"
+              onClick={isRecording ? handleStopRecording : handleStartRecording}
+              disabled={isLoading}
+              className={`p-2 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                isRecording 
+                  ? 'bg-red-500 hover:bg-red-600 text-white' 
+                  : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+              }`}
+            >
+              {isRecording ? <Square size={20} /> : <Mic size={20} />}
+            </button>
             <button
               type="submit"
               disabled={isLoading}
