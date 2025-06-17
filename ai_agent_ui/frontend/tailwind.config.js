@@ -1,3 +1,5 @@
+import { fontFamily } from 'tailwindcss/defaultTheme'
+
 /** @type {import('tailwindcss').Config} */
 export default {
   content: [
@@ -7,7 +9,7 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', 'sans-serif'],
+        sans: ['Montserrat', ...fontFamily.sans],
       },
     },
   },

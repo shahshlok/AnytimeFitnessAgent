@@ -10,6 +10,7 @@ function App() {
   const [playingAudioId, setPlayingAudioId] = useState(null)
   const [isRecording, setIsRecording] = useState(false)
   const [isTranscribing, setIsTranscribing] = useState(false)
+  const [showDisclaimer, setShowDisclaimer] = useState(true)
   const messagesEndRef = useRef(null)
   const mediaRecorderRef = useRef(null)
   const audioChunksRef = useRef([])
@@ -48,6 +49,7 @@ function App() {
   }
 
   const handleStartRecording = async () => {
+    setShowDisclaimer(false)
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       mediaRecorderRef.current = new MediaRecorder(stream)
@@ -151,6 +153,7 @@ function App() {
     e.preventDefault()
     if (!input.trim() || isLoading) return
 
+    setShowDisclaimer(false)
     const userMessage = { id: Date.now(), role: 'user', content: input }
     setMessages(prev => [...prev, userMessage])
     setInput('')
@@ -188,17 +191,29 @@ function App() {
   }
 
   return (
-    <div className="bg-white min-h-screen flex items-center justify-center p-4">
-      <div className="bg-gray-50 flex flex-col max-w-4xl w-full h-[95vh] rounded-2xl border border-gray-200 shadow-sm">
-        <header className="p-4 border-b border-gray-200">
-          <h1 className="text-lg font-semibold text-gray-800">Anytime Fitness AI Assistant</h1>
+    <div className="min-h-screen flex items-center justify-center p-4 m-auto" style={{backgroundImage: 'url(https://cdn.prod.website-files.com/66aa8fe9dc4db68f448a978f/674d6f816fb0202f972b2ab7_line-blend-5-aqua.svg)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundColor: '#440099'}}>
+      <div className="bg-white flex flex-col max-w-4xl w-full h-[95vh] rounded-2xl drop-shadow-2xl"style={{backgroundColor: '#440099'}}>
+        <header className="p-4  border-slate-700 flex justify-center">
+          <img src="https://cdn.prod.website-files.com/66aa8fe9dc4db68f448a978f/6759b321193738fec4167167_logo-white-desktop.svg" alt="Anytime Fitness" className="h-8" />
         </header>
+        
+        {showDisclaimer && (
+          <div className="bg-[#A42AF9]/50 border-l-4 border-[#A42AF9] p-3 mx-4 mt-2 rounded-md">
+            <div className="flex items-center">
+              <div className="ml-3">
+                <p className="text-sm text-[#EF3340] font-bold">
+                  AI can make mistakes. Check important info with staff.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {messages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center space-y-4">
-              <h2 className="text-2xl font-semibold text-gray-800">Welcome</h2>
-              <p className="text-gray-600 max-w-md">
+              <h2 className="text-2xl font-bold text-[#00AEC7]">Welcome</h2>
+              <p className="text-[#00AEC7] max-w-md">
                 Ask me anything about Anytime Fitness!
               </p>
             </div>
@@ -211,13 +226,13 @@ function App() {
                 <div
                   className={`max-w-[80%] rounded-2xl px-4 py-3 ${
                     message.role === 'user'
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-gray-200 text-gray-800'
+                      ? 'bg-[#6E38D5] text-white'
+                      : 'bg-slate-800/60 text-slate-200'
                   }`}
                 >
                   <div className="flex items-start gap-2">
                     {message.role === 'assistant' ? (
-                      <div className="prose max-w-none prose-p:text-gray-800 prose-li:text-gray-800">
+                      <div className="prose max-w-none prose-invert prose-p:text-slate-300 prose-li:text-slate-300">
                         <ReactMarkdown remarkPlugins={[remarkGfm]}>
                           {message.content}
                         </ReactMarkdown>
@@ -245,7 +260,7 @@ function App() {
           )}
           {isTranscribing && (
             <div className="flex justify-end">
-              <div className="bg-blue-500 rounded-2xl px-4 py-3">
+              <div className="bg-[#6E38D5] rounded-2xl px-4 py-3">
                 <div className="flex items-center space-x-1">
                   <div className="h-2 w-2 bg-blue-200 rounded-full animate-bounce [animation-delay:-0.3s]" />
                   <div className="h-2 w-2 bg-blue-200 rounded-full animate-bounce [animation-delay:-0.15s]" />
@@ -256,7 +271,7 @@ function App() {
           )}
           {isLoading && (
             <div className="flex justify-start">
-              <div className="bg-gray-200 text-gray-800 rounded-2xl px-4 py-3">
+              <div className="bg-slate-800 text-slate-200 rounded-2xl px-4 py-3">
                 <div className="flex items-center space-x-1">
                   <div className="h-2 w-2 bg-gray-500 rounded-full animate-bounce [animation-delay:-0.3s]" />
                   <div className="h-2 w-2 bg-gray-500 rounded-full animate-bounce [animation-delay:-0.15s]" />
@@ -268,14 +283,17 @@ function App() {
           <div ref={messagesEndRef} />
         </div>
 
-        <form onSubmit={handleSubmit} className="p-4 border-t border-gray-200">
+        <form onSubmit={handleSubmit} className="p-4 border-slate-700">
           <div className="flex gap-2">
             <input
               type="text"
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={(e) => {
+                setInput(e.target.value)
+                if (e.target.value.trim()) setShowDisclaimer(false)
+              }}
               placeholder="Type your message..."
-              className="flex-1 bg-white text-gray-800 rounded-lg px-4 py-2 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="flex-1 bg-slate-800/60 text-slate-200 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-violet-500"
               disabled={isLoading}
             />
             <button
@@ -285,7 +303,7 @@ function App() {
               className={`p-2 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                 isRecording 
                   ? 'bg-red-500 hover:bg-red-600 text-white' 
-                  : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                  : 'bg-slate-700 hover:bg-slate-600 text-slate-200'
               }`}
             >
               {isRecording ? <Square size={20} /> : <Mic size={20} />}
@@ -293,7 +311,7 @@ function App() {
             <button
               type="submit"
               disabled={isLoading}
-              className="bg-blue-500 text-white p-2 rounded-full hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-[#6E38D5] text-white p-2 rounded-full hover:bg-[#5B2FB8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <SendHorizontal size={20} />
             </button>
