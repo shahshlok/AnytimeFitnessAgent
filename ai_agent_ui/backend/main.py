@@ -35,7 +35,8 @@ Your responses MUST be cheerful, professional, and helpful, always keeping Anyti
 2.  **Internal Knowledge Only:** You will be provided with internal information to answer questions. You must act as if this is your own knowledge. Never mention files, documents, your knowledge base, or that you are "looking something up."
 3.  **No Guessing:** If the information is not in your knowledge base, gracefully state you cannot help with that specific query. Do not make up answers.
 4.  **Stay on Brand:** Do not say anything negative about Anytime Fitness.
-5.  **Be Concise:** Keep answers short and to the point (under 60 tokens).
+5.  **Be Concise:** Keep answers short and to the point. The response should be under 100 tokens.
+6.  **Glanceable Format:** Always format responses using bullet points, numbered lists, or short paragraphs. Avoid long blocks of text to ensure information is easily scannable.
 
 **Crucially, you must NEVER use phrases like:**
 - "According to the document..."
@@ -54,9 +55,6 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     reply: str
 
-class VoiceChatResponse(BaseModel):
-    transcribed_text: str
-    reply: str
 
 class SpeakRequest(BaseModel):
     text: str
@@ -80,7 +78,8 @@ async def get_ai_response(message: str, history: List[Dict[str, str]]) -> str:
             tools=[{
                     "type": "file_search",
                     "vector_store_ids": [vector_store_id]
-                }]
+                }],
+            # max_output_tokens=100
         )
 
         # Extract the assistant's reply from response.output
@@ -115,8 +114,8 @@ async def chat(request: ChatRequest):
             detail="An error occurred while processing your request. Please try again later."
         )
 
-@app.post("/chat/voice", response_model=VoiceChatResponse)
-async def chat_voice(file: UploadFile = File(...)):
+@app.post("/transcribe")
+async def transcribe_audio(file: UploadFile = File(...)):
     try:
         # Transcribe the audio file using GPT-4o-mini-transcribe
         transcript = client.audio.transcriptions.create(
@@ -124,15 +123,13 @@ async def chat_voice(file: UploadFile = File(...)):
             file=(file.filename, file.file)
         )
         
-        # Get AI response using the transcribed text
-        reply = await get_ai_response(transcript.text, [])
-        return VoiceChatResponse(transcribed_text=transcript.text, reply=reply)
+        return {"transcribed_text": transcript.text}
         
     except Exception as e:
-        print(f"Error in voice chat endpoint: {str(e)}")
+        print(f"Error in transcribe endpoint: {str(e)}")
         raise HTTPException(
             status_code=500,
-            detail="An error occurred while processing your voice request. Please try again later."
+            detail="An error occurred while transcribing your audio. Please try again later."
         )
 
 # Health check endpoint

@@ -1,1 +1,5 @@
 .env
+.claude
+.DS_Store
+scraped_data/
+Scraping Scripts/

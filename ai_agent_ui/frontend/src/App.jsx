@@ -86,20 +86,49 @@ function App() {
       const formData = new FormData()
       formData.append('file', audioBlob, 'user_voice_query.webm')
 
-      const response = await fetch('http://127.0.0.1:8000/chat/voice', {
+      // First API Call - Transcription
+      const transcribeResponse = await fetch('http://127.0.0.1:8000/transcribe', {
         method: 'POST',
         body: formData,
       })
 
-      if (!response.ok) {
-        throw new Error('Failed to process voice input')
+      if (!transcribeResponse.ok) {
+        throw new Error('Failed to transcribe audio')
       }
 
-      const data = await response.json()
-      const timestamp = Date.now()
-      const userMessage = { id: timestamp, role: 'user', content: data.transcribed_text }
-      const assistantMessage = { id: timestamp + 1, role: 'assistant', content: data.reply }
-      setMessages(prev => [...prev, userMessage, assistantMessage])
+      const { transcribed_text } = await transcribeResponse.json()
+      
+      if (!transcribed_text || transcribed_text.trim() === '') {
+        throw new Error('No speech detected in audio')
+      }
+
+      // Immediate UI Update - Add user message
+      const userMessage = { id: Date.now(), role: 'user', content: transcribed_text }
+      setMessages(prev => [...prev, userMessage])
+
+      // Get current history before adding the new user message
+      const apiHistory = messages.map(msg => ({ role: msg.role, content: msg.content }))
+
+      // Second API Call - AI Response
+      const chatResponse = await fetch('http://127.0.0.1:8000/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: transcribed_text,
+          history: apiHistory
+        }),
+      })
+
+      if (!chatResponse.ok) {
+        throw new Error('Failed to get AI response')
+      }
+
+      const { reply } = await chatResponse.json()
+      
+      // Add assistant's message to chat
+      setMessages(prev => [...prev, { id: Date.now() + 1, role: 'assistant', content: reply }])
     } catch (error) {
       console.error('Error processing voice input:', error)
       setMessages(prev => [...prev, { 
