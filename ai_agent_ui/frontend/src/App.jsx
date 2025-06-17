@@ -9,6 +9,7 @@ function App() {
   const [isLoading, setIsLoading] = useState(false)
   const [playingAudioId, setPlayingAudioId] = useState(null)
   const [isRecording, setIsRecording] = useState(false)
+  const [isTranscribing, setIsTranscribing] = useState(false)
   const messagesEndRef = useRef(null)
   const mediaRecorderRef = useRef(null)
   const audioChunksRef = useRef([])
@@ -81,7 +82,7 @@ function App() {
   }
 
   const sendAudioToApi = async (audioBlob) => {
-    setIsLoading(true)
+    setIsTranscribing(true)
     try {
       const formData = new FormData()
       formData.append('file', audioBlob, 'user_voice_query.webm')
@@ -102,9 +103,13 @@ function App() {
         throw new Error('No speech detected in audio')
       }
 
-      // Immediate UI Update - Add user message
+      // Stop transcribing indicator and add user message
+      setIsTranscribing(false)
       const userMessage = { id: Date.now(), role: 'user', content: transcribed_text }
       setMessages(prev => [...prev, userMessage])
+
+      // Start loading indicator for AI response
+      setIsLoading(true)
 
       // Get current history before adding the new user message
       const apiHistory = messages.map(msg => ({ role: msg.role, content: msg.content }))
@@ -137,6 +142,7 @@ function App() {
         content: 'Sorry, I encountered an error processing your voice input. Please try again.' 
       }])
     } finally {
+      setIsTranscribing(false)
       setIsLoading(false)
     }
   }
@@ -236,6 +242,17 @@ function App() {
                 </div>
               </div>
             ))
+          )}
+          {isTranscribing && (
+            <div className="flex justify-end">
+              <div className="bg-blue-500 rounded-2xl px-4 py-3">
+                <div className="flex items-center space-x-1">
+                  <div className="h-2 w-2 bg-blue-200 rounded-full animate-bounce [animation-delay:-0.3s]" />
+                  <div className="h-2 w-2 bg-blue-200 rounded-full animate-bounce [animation-delay:-0.15s]" />
+                  <div className="h-2 w-2 bg-blue-200 rounded-full animate-bounce" />
+                </div>
+              </div>
+            </div>
           )}
           {isLoading && (
             <div className="flex justify-start">
