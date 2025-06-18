@@ -53,6 +53,20 @@ function App() {
     }
   }
 
+  const requestMicrophonePermission = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      // If successful, stop the stream immediately as we just wanted to trigger permission
+      stream.getTracks().forEach(track => track.stop())
+      setMicError('')
+      // Now start actual recording
+      await startRecordingLogic()
+    } catch (error) {
+      console.error('Permission request failed:', error)
+      setMicError('Microphone access is still blocked. Please manually enable it in your browser settings.')
+    }
+  }
+
   const startRecordingLogic = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
@@ -310,7 +324,17 @@ function App() {
         )}
         {micError && (
           <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mx-4 mt-2 rounded-md">
-            <p>{micError}</p>
+            <div className="flex items-center justify-between">
+              <p className="flex-1">{micError}</p>
+              {micError.includes('blocked') && (
+                <button
+                  onClick={requestMicrophonePermission}
+                  className="ml-4 px-3 py-1 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 transition-colors text-sm font-medium"
+                >
+                  Try Again
+                </button>
+              )}
+            </div>
           </div>
         )}
         {
