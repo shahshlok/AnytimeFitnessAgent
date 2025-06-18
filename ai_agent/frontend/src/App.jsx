@@ -16,6 +16,8 @@ function App() {
   const mediaRecorderRef = useRef(null)
   const audioChunksRef = useRef([])
   const streamRef = useRef(null)
+  const chatAbortControllerRef = useRef(null)
+  const transcribeAbortControllerRef = useRef(null)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -101,9 +103,11 @@ function App() {
       formData.append('file', audioBlob, 'user_voice_query.webm')
 
       // First API Call - Transcription
+      transcribeAbortControllerRef.current = new AbortController()
       const transcribeResponse = await fetch('http://127.0.0.1:8000/transcribe', {
         method: 'POST',
         body: formData,
+        signal: transcribeAbortControllerRef.current.signal
       })
 
       if (!transcribeResponse.ok) {
@@ -128,6 +132,7 @@ function App() {
       const apiHistory = messages.map(msg => ({ role: msg.role, content: msg.content }))
 
       // Second API Call - AI Response
+      chatAbortControllerRef.current = new AbortController()
       const chatResponse = await fetch('http://127.0.0.1:8000/chat', {
         method: 'POST',
         headers: {
@@ -137,6 +142,7 @@ function App() {
           message: transcribed_text,
           history: apiHistory
         }),
+        signal: chatAbortControllerRef.current.signal
       })
 
       if (!chatResponse.ok) {
@@ -161,7 +167,42 @@ function App() {
   }
 
   const handleResetChat = () => {
+    // Abort any ongoing API requests
+    if (chatAbortControllerRef.current) {
+      chatAbortControllerRef.current.abort()
+      chatAbortControllerRef.current = null
+    }
+    if (transcribeAbortControllerRef.current) {
+      transcribeAbortControllerRef.current.abort()
+      transcribeAbortControllerRef.current = null
+    }
+    
+    // Stop recording if active
+    if (isRecording) {
+      if (mediaRecorderRef.current) {
+        mediaRecorderRef.current.stop()
+      }
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => {
+          track.stop()
+        })
+        streamRef.current = null
+      }
+    }
+    
+    // Reset all states to initial values
     setMessages([])
+    setInput('')
+    setIsLoading(false)
+    setPlayingAudioId(null)
+    setIsRecording(false)
+    setIsTranscribing(false)
+    setShowDisclaimer(true)
+    
+    // Clear audio chunks
+    audioChunksRef.current = []
+    
+    // Show success popup
     setShowResetPopup(true)
     setTimeout(() => {
       setShowResetPopup(false)
@@ -181,6 +222,7 @@ function App() {
     try {
       const apiHistory = messages.map(msg => ({ role: msg.role, content: msg.content }));
 
+      chatAbortControllerRef.current = new AbortController()
       const response = await fetch('http://127.0.0.1:8000/chat', {
         method: 'POST',
         headers: {
@@ -190,6 +232,7 @@ function App() {
           message: input,
           history: apiHistory
         }),
+        signal: chatAbortControllerRef.current.signal
       })
 
       if (!response.ok) {
