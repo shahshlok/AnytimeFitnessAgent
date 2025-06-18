@@ -336,14 +336,14 @@ function App() {
                 if (e.target.value.trim()) setShowDisclaimer(false)
               }}
               placeholder="Type your message..."
-              className="flex-1 bg-white text-slate-800 rounded-lg px-4 py-2 border-[#00AEC7] border-2"
+              className="flex-1 bg-white text-slate-800 rounded-lg px-4 py-2 border-[#00AEC7] border-2 outline-none focus:border-[#00AEC7] focus:ring-1 focus:outline-none"
               disabled={isLoading}
             />
             <button
               type="button"
               onClick={isRecording ? handleStopRecording : handleStartRecording}
               disabled={isLoading}
-              className={`p-2 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+              className={`p-2 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed outline-none focus:outline-none active:outline-none ${
                 isRecording 
                   ? 'bg-red-500 hover:bg-red-600 text-white' 
                   : 'bg-white hover:bg-gray-50 text-black border-2 border-red-500'
