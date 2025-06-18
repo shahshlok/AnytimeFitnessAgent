@@ -7,6 +7,6 @@ export default defineConfig({
   server: {
     host: '0.0.0.0', // Bind to all network interfaces
     // port: 5454,
-    allowedHosts: ['anytime-fitness-stg.dxfactor.com'],
+    // allowedHosts: ['anytime-fitness-stg.dxfactor.com'],
   },
 })
