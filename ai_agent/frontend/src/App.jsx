@@ -12,6 +12,7 @@ function App() {
   const [isTranscribing, setIsTranscribing] = useState(false)
   const [showDisclaimer, setShowDisclaimer] = useState(true)
   const [showResetPopup, setShowResetPopup] = useState(false)
+  const [micError, setMicError] = useState('')
   const messagesEndRef = useRef(null)
   const mediaRecorderRef = useRef(null)
   const audioChunksRef = useRef([])
@@ -52,8 +53,7 @@ function App() {
     }
   }
 
-  const handleStartRecording = async () => {
-    setShowDisclaimer(false)
+  const startRecordingLogic = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       streamRef.current = stream
@@ -78,6 +78,32 @@ function App() {
         role: 'assistant', 
         content: 'Sorry, I could not access your microphone. Please ensure you have granted microphone permissions.' 
       }])
+    }
+  }
+
+  const handleStartRecording = async () => {
+    setShowDisclaimer(false)
+    setMicError('')
+    
+    try {
+      const permissionStatus = await navigator.permissions.query({ name: 'microphone' })
+      
+      switch (permissionStatus.state) {
+        case 'granted':
+          await startRecordingLogic()
+          break
+        case 'prompt':
+          await startRecordingLogic()
+          break
+        case 'denied':
+          setMicError('Microphone access is blocked. Please enable it in your browser site settings.')
+          break
+        default:
+          await startRecordingLogic()
+      }
+    } catch (error) {
+      console.error('Error checking microphone permissions:', error)
+      await startRecordingLogic()
     }
   }
 
@@ -282,6 +308,11 @@ function App() {
             </div>
           </div>
         )}
+        {micError && (
+          <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mx-4 mt-2 rounded-md">
+            <p>{micError}</p>
+          </div>
+        )}
         {
           showResetPopup && (
             <div className="bg-white mx-auto mt-auto rounded-md">
@@ -377,6 +408,7 @@ function App() {
               onChange={(e) => {
                 setInput(e.target.value)
                 if (e.target.value.trim()) setShowDisclaimer(false)
+                if (micError) setMicError('')
               }}
               placeholder="How can I help you today?"
               className="flex-1 bg-white text-slate-800 rounded-lg px-4 py-2 border-[#00AEC7] border-2 outline-none focus:border-[#00AEC7] focus:ring-1 focus:outline-none"
