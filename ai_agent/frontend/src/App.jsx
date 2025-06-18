@@ -378,7 +378,7 @@ function App() {
                 setInput(e.target.value)
                 if (e.target.value.trim()) setShowDisclaimer(false)
               }}
-              placeholder="Type your message..."
+              placeholder="How can I help you today?"
               className="flex-1 bg-white text-slate-800 rounded-lg px-4 py-2 border-[#00AEC7] border-2 outline-none focus:border-[#00AEC7] focus:ring-1 focus:outline-none"
               disabled={isLoading}
             />
