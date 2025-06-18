@@ -15,6 +15,7 @@ function App() {
   const messagesEndRef = useRef(null)
   const mediaRecorderRef = useRef(null)
   const audioChunksRef = useRef([])
+  const streamRef = useRef(null)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -53,6 +54,7 @@ function App() {
     setShowDisclaimer(false)
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      streamRef.current = stream
       mediaRecorderRef.current = new MediaRecorder(stream)
       
       mediaRecorderRef.current.ondataavailable = (event) => {
@@ -81,6 +83,14 @@ function App() {
     if (mediaRecorderRef.current) {
       mediaRecorderRef.current.stop()
       setIsRecording(false)
+    }
+    
+    // Close the microphone stream
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => {
+        track.stop()
+      })
+      streamRef.current = null
     }
   }
 
