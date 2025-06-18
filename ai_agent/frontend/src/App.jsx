@@ -4,7 +4,7 @@ import remarkGfm from 'remark-gfm'
 import { SendHorizontal, Volume2, LoaderCircle, Mic, Square, RotateCcw } from 'lucide-react'
 
 function App() {
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'
+  // const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -32,7 +32,7 @@ function App() {
   const handlePlayAudio = async (text, messageId) => {
     setPlayingAudioId(messageId)
     try {
-      const response = await fetch(`${API_BASE_URL}/speak`, {
+      const response = await fetch(`http://54.215.182.154:7479/speak`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -145,7 +145,7 @@ function App() {
 
       // First API Call - Transcription
       transcribeAbortControllerRef.current = new AbortController()
-      const transcribeResponse = await fetch(`${API_BASE_URL}/transcribe`, {
+      const transcribeResponse = await fetch(`http://54.215.182.154:7479/transcribe`, {
         method: 'POST',
         body: formData,
         signal: transcribeAbortControllerRef.current.signal
@@ -174,7 +174,7 @@ function App() {
 
       // Second API Call - AI Response
       chatAbortControllerRef.current = new AbortController()
-      const chatResponse = await fetch(`${API_BASE_URL}/chat`, {
+      const chatResponse = await fetch(`http://54.215.182.154:7479/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -264,7 +264,7 @@ function App() {
       const apiHistory = messages.map(msg => ({ role: msg.role, content: msg.content }));
 
       chatAbortControllerRef.current = new AbortController()
-      const response = await fetch(`${API_BASE_URL}/chat`, {
+      const response = await fetch(`http://54.215.182.154:7479/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
