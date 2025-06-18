@@ -192,16 +192,16 @@ function App() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 m-auto" style={{backgroundImage: 'url(https://cdn.prod.website-files.com/66aa8fe9dc4db68f448a978f/674d6f816fb0202f972b2ab7_line-blend-5-aqua.svg)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundColor: '#440099'}}>
-      <div className="bg-white flex flex-col max-w-4xl w-full h-[95vh] rounded-2xl drop-shadow-2xl"style={{backgroundColor: '#440099'}}>
+      <div className="bg-white flex flex-col max-w-[95vw] w-full h-[95vh] rounded-2xl drop-shadow-2xl"style={{backgroundColor: '#440099'}}>
         <header className="p-4  border-slate-700 flex justify-center">
           <img src="https://cdn.prod.website-files.com/66aa8fe9dc4db68f448a978f/6759b321193738fec4167167_logo-white-desktop.svg" alt="Anytime Fitness" className="h-8" />
         </header>
         
         {showDisclaimer && (
-          <div className="bg-[#A42AF9]/50 border-l-4 border-[#A42AF9] p-3 mx-4 mt-2 rounded-md">
-            <div className="flex items-center">
+          <div className="bg-slate-800/30 border-b-2 border-[#EF3340] p-3 mx-4 mt-2 rounded-md">
+            <div className="flex items-center justify-center">
               <div className="ml-3">
-                <p className="text-sm text-[#EF3340] font-bold">
+                <p className="text-s text-[#EF3340] font-bold ">
                   AI can make mistakes. Check important info with staff.
                 </p>
               </div>
