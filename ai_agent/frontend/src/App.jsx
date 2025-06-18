@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { SendHorizontal, Volume2, LoaderCircle, Mic, Square } from 'lucide-react'
+import { SendHorizontal, Volume2, LoaderCircle, Mic, Square, RotateCcw } from 'lucide-react'
 
 function App() {
   const [messages, setMessages] = useState([])
@@ -11,6 +11,7 @@ function App() {
   const [isRecording, setIsRecording] = useState(false)
   const [isTranscribing, setIsTranscribing] = useState(false)
   const [showDisclaimer, setShowDisclaimer] = useState(true)
+  const [showResetPopup, setShowResetPopup] = useState(false)
   const messagesEndRef = useRef(null)
   const mediaRecorderRef = useRef(null)
   const audioChunksRef = useRef([])
@@ -149,6 +150,14 @@ function App() {
     }
   }
 
+  const handleResetChat = () => {
+    setMessages([])
+    setShowResetPopup(true)
+    setTimeout(() => {
+      setShowResetPopup(false)
+    }, 3000)
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!input.trim() || isLoading) return
@@ -192,9 +201,21 @@ function App() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 m-auto">
+      {/* {showResetPopup && (
+        <div className="absolute top-0 right-0 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 dark:bg-green-200 dark:text-white">
+          Chat cleared successfully!
+        </div>
+      )} */}
       <div className="bg-white flex flex-col max-w-[95vw] w-full h-[95vh] rounded-2xl drop-shadow-2xl"style={{backgroundColor: '#ffffff'}}>
-        <header className="p-4  border-slate-700 flex justify-center">
+        <header className="p-4  border-slate-700 flex justify-center items-center relative">
           <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR27TJM9maic67yLPtJmNFfe1BcQdQi-GP8HQ&s" alt="Anytime Fitness" className="h-8" />
+          <button
+            onClick={handleResetChat}
+            title="Clear chat"
+            className="absolute bottom-2 right-4 text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
+          >
+            <RotateCcw size={20} />
+          </button>
         </header>
         
         {showDisclaimer && (
@@ -208,7 +229,19 @@ function App() {
             </div>
           </div>
         )}
-
+        {
+          showResetPopup && (
+            <div className="bg-white mx-auto mt-auto rounded-md">
+            <div className="flex items-center justify-center">
+              <div className="ml-3">
+                <div className="bg-green-500 text-white px-2 py-2 rounded-lg shadow-lg z-50 dark:bg-green-200 dark:text-white">
+                  Chat cleared successfully!
+                </div>
+              </div>
+            </div>
+          </div>
+          )
+        }
         <div className="flex-1 overflow-y-auto p-6 space-y-5">
           {messages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center space-y-4">
