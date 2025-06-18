@@ -31,7 +31,7 @@ function App() {
   const handlePlayAudio = async (text, messageId) => {
     setPlayingAudioId(messageId)
     try {
-      const response = await fetch('http://127.0.0.1:8000/speak', {
+      const response = await fetch('http://54.215.182.154:5173/speak', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -144,7 +144,7 @@ function App() {
 
       // First API Call - Transcription
       transcribeAbortControllerRef.current = new AbortController()
-      const transcribeResponse = await fetch('http://127.0.0.1:8000/transcribe', {
+      const transcribeResponse = await fetch('http://54.215.182.154:5173/transcribe', {
         method: 'POST',
         body: formData,
         signal: transcribeAbortControllerRef.current.signal
@@ -173,7 +173,7 @@ function App() {
 
       // Second API Call - AI Response
       chatAbortControllerRef.current = new AbortController()
-      const chatResponse = await fetch('http://127.0.0.1:8000/chat', {
+      const chatResponse = await fetch('http://54.215.182.154:5173/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -263,7 +263,7 @@ function App() {
       const apiHistory = messages.map(msg => ({ role: msg.role, content: msg.content }));
 
       chatAbortControllerRef.current = new AbortController()
-      const response = await fetch('http://127.0.0.1:8000/chat', {
+      const response = await fetch('http://54.215.182.154:5173/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
