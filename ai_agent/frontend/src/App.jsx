@@ -4,7 +4,7 @@ import remarkGfm from 'remark-gfm'
 import { SendHorizontal, Volume2, LoaderCircle, Mic, Square, RotateCcw } from 'lucide-react'
 
 function App() {
-  const API_BASE_URL = 'http://anytime-fitness-stg.dxfactor.com:7479'
+  const API_BASE_URL = 'https://anytime-fitness-stg-api.dxfactor.com'
   const [messages, setMessages] = useState([])
   
   // Add logging for debugging
