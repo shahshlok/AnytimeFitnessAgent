@@ -4,26 +4,52 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import List, Dict
 import os
+import logging
+import sys
+from datetime import datetime
 from openai import OpenAI
 from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('/tmp/af_backend.log'),
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+logger = logging.getLogger(__name__)
+
 # Initialize FastAPI app
 app = FastAPI(title="Anytime Fitness AI Chatbot API")
 
+# Log startup
+logger.info("Starting Anytime Fitness AI Chatbot API")
+
 # Configure CORS
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "*").split(",")
+logger.info(f"CORS allowed origins: {allowed_origins}")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins
+    allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],  # Allows all methods
-    allow_headers=["*"],  # Allows all headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Initialize OpenAI client
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+api_key = os.getenv("OPENAI_API_KEY")
+if not api_key:
+    logger.error("OPENAI_API_KEY not found in environment variables")
+    raise ValueError("OPENAI_API_KEY must be set")
+
+client = OpenAI(api_key=api_key)
+logger.info("OpenAI client initialized successfully")
 
 # System prompt constant
 SYSTEM_PROMPT = """You are an expert AI assistant and virtual receptionist for Anytime Fitness India. Your entire persona is that of a knowledgeable and friendly human employee.
@@ -78,6 +104,7 @@ async def get_ai_response(message: str, history: List[Dict[str, str]]) -> str:
         conversation_messages.append({"role": "user", "content": message})
 
         # Make API call to OpenAI
+        logger.info(f"Making OpenAI API call for message: {message[:100]}...")
         response = client.responses.create(
             model="gpt-4.1-mini",
             input=conversation_messages,
@@ -97,12 +124,13 @@ async def get_ai_response(message: str, history: List[Dict[str, str]]) -> str:
 
         if not response_text:
             raise HTTPException(status_code=500, detail="Failed to get response from AI model")
+        
+        logger.info(f"AI response generated: {response_text[:100]}...")
 
         return response_text
 
     except Exception as e:
-        # Log the error for debugging
-        print(f"Error in get_ai_response: {str(e)}")
+        logger.error(f"Error in get_ai_response: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=500,
             detail="An error occurred while processing your request. Please try again later."
@@ -110,11 +138,13 @@ async def get_ai_response(message: str, history: List[Dict[str, str]]) -> str:
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
+    logger.info(f"Chat request received: {request.message[:100]}...")
     try:
         reply = await get_ai_response(request.message, request.history)
+        logger.info(f"Chat response sent: {reply[:100]}...")
         return ChatResponse(reply=reply)
     except Exception as e:
-        print(f"Error in chat endpoint: {str(e)}")
+        logger.error(f"Error in chat endpoint: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=500,
             detail="An error occurred while processing your request. Please try again later."
@@ -122,6 +152,7 @@ async def chat(request: ChatRequest):
 
 @app.post("/transcribe")
 async def transcribe_audio(file: UploadFile = File(...)):
+    logger.info(f"Transcription request received for file: {file.filename}")
     try:
         # Transcribe the audio file using GPT-4o-mini-transcribe
         transcript = client.audio.transcriptions.create(
@@ -129,10 +160,11 @@ async def transcribe_audio(file: UploadFile = File(...)):
             file=(file.filename, file.file)
         )
         
+        logger.info(f"Transcription completed: {transcript.text[:50]}...")
         return {"transcribed_text": transcript.text}
         
     except Exception as e:
-        print(f"Error in transcribe endpoint: {str(e)}")
+        logger.error(f"Error in transcribe endpoint: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=500,
             detail="An error occurred while transcribing your audio. Please try again later."
@@ -141,10 +173,16 @@ async def transcribe_audio(file: UploadFile = File(...)):
 # Health check endpoint
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy"}
+    logger.info("Health check requested")
+    return {
+        "status": "healthy",
+        "timestamp": datetime.now().isoformat(),
+        "version": "1.0.0"
+    }
 
 @app.post("/speak")
 async def text_to_speech(request: SpeakRequest):
+    logger.info(f"TTS request received: {request.text[:50]}...")
     try:
         response = client.audio.speech.create(
             model="gpt-4o-mini-tts",
@@ -152,13 +190,14 @@ async def text_to_speech(request: SpeakRequest):
             input=request.text
         )
         
+        logger.info("TTS response generated successfully")
         return StreamingResponse(
             content=response.iter_bytes(),
             media_type="audio/mpeg"
         )
         
     except Exception as e:
-        print(f"Error in text-to-speech endpoint: {str(e)}")
+        logger.error(f"Error in text-to-speech endpoint: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=500,
             detail="An error occurred while generating speech. Please try again later."
