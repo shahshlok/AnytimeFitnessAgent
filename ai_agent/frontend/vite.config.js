@@ -6,8 +6,13 @@ export default defineConfig({
   plugins: [react()],
   server: {
     host: '0.0.0.0', // Bind to all network interfaces
-    // port: 5454,
-    // allowedHosts: ['anytime-fitness-stg.dxfactor.com'],
+    port: 5173,
+    allowedHosts: ['anytime-fitness-stg.dxfactor.com'],
+  },
+  preview: {
+    host: '0.0.0.0',
+    port: 5173,
+    allowedHosts: ['anytime-fitness-stg.dxfactor.com'],
   },
 })
 
