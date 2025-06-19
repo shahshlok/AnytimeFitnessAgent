@@ -10,3 +10,6 @@ export default defineConfig({
     // allowedHosts: ['anytime-fitness-stg.dxfactor.com'],
   },
 })
+
+
+// This is a test
