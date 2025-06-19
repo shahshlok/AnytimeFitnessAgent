@@ -4,8 +4,11 @@ import remarkGfm from 'remark-gfm'
 import { SendHorizontal, Volume2, LoaderCircle, Mic, Square, RotateCcw } from 'lucide-react'
 
 function App() {
-  // const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
+  const API_BASE_URL = 'https://anytime-fitness-stg-api.dxfactor.com'
   const [messages, setMessages] = useState([])
+  
+  // Add logging for debugging
+  console.log('API_BASE_URL:', API_BASE_URL)
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [playingAudioId, setPlayingAudioId] = useState(null)
@@ -30,25 +33,44 @@ function App() {
   }, [messages, isTranscribing])
 
   const handlePlayAudio = async (text, messageId) => {
+    console.log(`[TTS] Starting audio playback for message ${messageId}`)
     setPlayingAudioId(messageId)
     try {
-      const response = await fetch(`http://54.215.182.154:7479/speak`, {
+      console.log('Making TTS request to:', `${API_BASE_URL}/speak`)
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => {
+        controller.abort()
+        console.error('[TTS] Request timed out after 30 seconds')
+      }, 30000)
+      
+      const response = await fetch(`${API_BASE_URL}/speak`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ text }),
+        signal: controller.signal
       })
-
+      
+      clearTimeout(timeoutId)
+      
       if (!response.ok) {
-        throw new Error('Failed to get audio')
+        console.error(`[TTS] HTTP Error: ${response.status} ${response.statusText}`)
+        throw new Error(`Failed to get audio: ${response.status}`)
       }
 
+      console.log('[TTS] Audio response received, creating blob')
       const audioBlob = await response.blob()
       const audio = new Audio(URL.createObjectURL(audioBlob))
+      console.log('[TTS] Playing audio')
       await audio.play()
+      console.log('[TTS] Audio playback completed')
     } catch (error) {
-      console.error('Error playing audio:', error)
+      if (error.name === 'AbortError') {
+        console.error('[TTS] Request was aborted due to timeout')
+      } else {
+        console.error('[TTS] Error playing audio:', error)
+      }
     } finally {
       setPlayingAudioId(null)
     }
@@ -138,26 +160,44 @@ function App() {
   }
 
   const sendAudioToApi = async (audioBlob) => {
+    console.log('[VOICE] Starting voice processing pipeline')
     setIsTranscribing(true)
     try {
+      console.log(`[VOICE] Audio blob size: ${audioBlob.size} bytes`)
       const formData = new FormData()
       formData.append('file', audioBlob, 'user_voice_query.webm')
 
       // First API Call - Transcription
+      console.log('[TRANSCRIBE] Making transcription request to:', `${API_BASE_URL}/transcribe`)
+      const transcribeStart = Date.now()
       transcribeAbortControllerRef.current = new AbortController()
-      const transcribeResponse = await fetch(`http://54.215.182.154:7479/transcribe`, {
+      
+      // Add timeout for transcription
+      const transcribeTimeoutId = setTimeout(() => {
+        transcribeAbortControllerRef.current.abort()
+        console.error('[TRANSCRIBE] Request timed out after 60 seconds')
+      }, 60000)
+      
+      const transcribeResponse = await fetch(`${API_BASE_URL}/transcribe`, {
         method: 'POST',
         body: formData,
         signal: transcribeAbortControllerRef.current.signal
       })
+      
+      clearTimeout(transcribeTimeoutId)
+      const transcribeTime = Date.now() - transcribeStart
+      console.log(`[TRANSCRIBE] Request completed in ${transcribeTime}ms`)
 
       if (!transcribeResponse.ok) {
-        throw new Error('Failed to transcribe audio')
+        console.error(`[TRANSCRIBE] HTTP Error: ${transcribeResponse.status} ${transcribeResponse.statusText}`)
+        throw new Error(`Failed to transcribe audio: ${transcribeResponse.status}`)
       }
 
       const { transcribed_text } = await transcribeResponse.json()
+      console.log(`[TRANSCRIBE] Result: "${transcribed_text}"`)
       
       if (!transcribed_text || transcribed_text.trim() === '') {
+        console.warn('[TRANSCRIBE] No speech detected in audio')
         throw new Error('No speech detected in audio')
       }
 
@@ -165,16 +205,27 @@ function App() {
       setIsTranscribing(false)
       const userMessage = { id: Date.now(), role: 'user', content: transcribed_text }
       setMessages(prev => [...prev, userMessage])
+      console.log('[VOICE] User message added to chat')
 
       // Start loading indicator for AI response
       setIsLoading(true)
 
       // Get current history before adding the new user message
       const apiHistory = messages.map(msg => ({ role: msg.role, content: msg.content }))
+      console.log(`[CHAT] Sending message with ${apiHistory.length} history items`)
 
       // Second API Call - AI Response
+      console.log('[CHAT] Making chat request to:', `${API_BASE_URL}/chat`)
+      const chatStart = Date.now()
       chatAbortControllerRef.current = new AbortController()
-      const chatResponse = await fetch(`http://54.215.182.154:7479/chat`, {
+      
+      // Add timeout for chat
+      const chatTimeoutId = setTimeout(() => {
+        chatAbortControllerRef.current.abort()
+        console.error('[CHAT] Request timed out after 120 seconds')
+      }, 120000)
+      
+      const chatResponse = await fetch(`${API_BASE_URL}/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -185,22 +236,38 @@ function App() {
         }),
         signal: chatAbortControllerRef.current.signal
       })
+      
+      clearTimeout(chatTimeoutId)
+      const chatTime = Date.now() - chatStart
+      console.log(`[CHAT] Request completed in ${chatTime}ms`)
 
       if (!chatResponse.ok) {
-        throw new Error('Failed to get AI response')
+        console.error(`[CHAT] HTTP Error: ${chatResponse.status} ${chatResponse.statusText}`)
+        throw new Error(`Failed to get AI response: ${chatResponse.status}`)
       }
 
       const { reply } = await chatResponse.json()
+      console.log(`[CHAT] AI response received: "${reply.substring(0, 100)}..."`)
       
       // Add assistant's message to chat
       setMessages(prev => [...prev, { id: Date.now() + 1, role: 'assistant', content: reply }])
+      console.log('[VOICE] Voice processing pipeline completed successfully')
     } catch (error) {
-      console.error('Error processing voice input:', error)
-      setMessages(prev => [...prev, { 
-        id: Date.now(),
-        role: 'assistant', 
-        content: 'Sorry, I encountered an error processing your voice input. Please try again.' 
-      }])
+      if (error.name === 'AbortError') {
+        console.error('[VOICE] Request was aborted due to timeout')
+        setMessages(prev => [...prev, { 
+          id: Date.now(),
+          role: 'assistant', 
+          content: 'Sorry, the request timed out. Please try again with a shorter message.' 
+        }])
+      } else {
+        console.error('[VOICE] Error processing voice input:', error)
+        setMessages(prev => [...prev, { 
+          id: Date.now(),
+          role: 'assistant', 
+          content: 'Sorry, I encountered an error processing your voice input. Please try again.' 
+        }])
+      }
     } finally {
       setIsTranscribing(false)
       setIsLoading(false)
@@ -254,40 +321,69 @@ function App() {
     e.preventDefault()
     if (!input.trim() || isLoading) return
 
+    console.log(`[CHAT] Submitting text message: "${input}"`)
     setShowDisclaimer(false)
     const userMessage = { id: Date.now(), role: 'user', content: input }
     setMessages(prev => [...prev, userMessage])
+    const originalInput = input
     setInput('')
     setIsLoading(true)
 
     try {
       const apiHistory = messages.map(msg => ({ role: msg.role, content: msg.content }));
+      console.log(`[CHAT] Sending message with ${apiHistory.length} history items`)
 
+      console.log('[CHAT] Making chat request to:', `${API_BASE_URL}/chat`)
+      const chatStart = Date.now()
       chatAbortControllerRef.current = new AbortController()
-      const response = await fetch(`http://54.215.182.154:7479/chat`, {
+      
+      // Add timeout for text chat
+      const timeoutId = setTimeout(() => {
+        chatAbortControllerRef.current.abort()
+        console.error('[CHAT] Request timed out after 120 seconds')
+      }, 120000)
+      
+      const response = await fetch(`${API_BASE_URL}/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          message: input,
+          message: originalInput,
           history: apiHistory
         }),
         signal: chatAbortControllerRef.current.signal
       })
+      
+      clearTimeout(timeoutId)
+      const chatTime = Date.now() - chatStart
+      console.log(`[CHAT] Request completed in ${chatTime}ms`)
 
       if (!response.ok) {
-        throw new Error('Failed to get response')
+        console.error(`[CHAT] HTTP Error: ${response.status} ${response.statusText}`)
+        throw new Error(`Failed to get response: ${response.status}`)
       }
 
       const data = await response.json()
+      console.log(`[CHAT] AI response received: "${data.reply.substring(0, 100)}..."`)
       setMessages(prev => [...prev, { id: Date.now(), role: 'assistant', content: data.reply }])
+      console.log('[CHAT] Text chat completed successfully')
     } catch (error) {
-      setMessages(prev => [...prev, { 
-        id: Date.now(),
-        role: 'assistant', 
-        content: 'Sorry, I encountered an error. Please try again.' 
-      }])
+      if (error.name === 'AbortError') {
+        console.error('[CHAT] Request was aborted due to timeout')
+        setMessages(prev => [...prev, { 
+          id: Date.now(),
+          role: 'assistant', 
+          content: 'Sorry, the request timed out. Please try again with a shorter message.' 
+        }])
+      } else {
+        console.error('[CHAT] Error in text chat:', error)
+        setMessages(prev => [...prev, { 
+          id: Date.now(),
+          role: 'assistant', 
+          content: 'Sorry, I encountered an error. Please try again.' 
+        }])
+      }
     } finally {
       setIsLoading(false)
     }
