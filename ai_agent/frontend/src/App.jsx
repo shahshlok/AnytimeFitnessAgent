@@ -4,7 +4,7 @@ import remarkGfm from 'remark-gfm'
 import { SendHorizontal, Volume2, LoaderCircle, Mic, Square, RotateCcw } from 'lucide-react'
 
 function App() {
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:7479'
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://54.215.182.154:7479'
   const [messages, setMessages] = useState([])
   
   // Add logging for debugging
