@@ -17,12 +17,26 @@ function App() {
   const [showDisclaimer, setShowDisclaimer] = useState(true)
   const [showResetPopup, setShowResetPopup] = useState(false)
   const [micError, setMicError] = useState('')
+  const [isListening, setIsListening] = useState(false)
   const messagesEndRef = useRef(null)
   const mediaRecorderRef = useRef(null)
   const audioChunksRef = useRef([])
   const streamRef = useRef(null)
   const chatAbortControllerRef = useRef(null)
   const transcribeAbortControllerRef = useRef(null)
+  const audioContextRef = useRef(null)
+  const analyserRef = useRef(null)
+  const silenceTimerRef = useRef(null)
+  const vadActiveRef = useRef(false)
+  const recordingStartTimeRef = useRef(null)
+
+  // VAD Configuration
+  const VAD_CONFIG = {
+    SILENCE_THRESHOLD: 0.015, // Volume threshold below which is considered silence
+    SILENCE_DURATION: 2500, // Duration of silence (ms) before auto-stopping
+    MIN_RECORDING_TIME: 1500, // Minimum recording time before VAD can trigger
+    SAMPLE_RATE: 256, // FFT size for frequency analysis
+  }
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -31,6 +45,89 @@ function App() {
   useEffect(() => {
     scrollToBottom()
   }, [messages, isTranscribing])
+
+  // Voice Activity Detection Functions
+  const startVoiceActivityDetection = (stream) => {
+    try {
+      if (!audioContextRef.current) {
+        audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)()
+      }
+      
+      const audioContext = audioContextRef.current
+      const source = audioContext.createMediaStreamSource(stream)
+      const analyser = audioContext.createAnalyser()
+      
+      analyser.fftSize = VAD_CONFIG.SAMPLE_RATE
+      analyser.smoothingTimeConstant = 0.8
+      
+      source.connect(analyser)
+      analyserRef.current = analyser
+      vadActiveRef.current = true
+      
+      console.log('[VAD] Voice activity detection started')
+      monitorVoiceActivity()
+      
+    } catch (error) {
+      console.error('[VAD] Error setting up voice activity detection:', error)
+    }
+  }
+
+  const monitorVoiceActivity = () => {
+    if (!vadActiveRef.current || !analyserRef.current) return
+    
+    const analyser = analyserRef.current
+    const dataArray = new Uint8Array(analyser.frequencyBinCount)
+    analyser.getByteFrequencyData(dataArray)
+    
+    // Calculate average volume
+    const average = dataArray.reduce((sum, value) => sum + value, 0) / dataArray.length
+    const normalizedVolume = average / 255
+    
+    const isSpeaking = normalizedVolume > VAD_CONFIG.SILENCE_THRESHOLD
+    setIsListening(isSpeaking)
+    
+    if (isSpeaking) {
+      // Clear any existing silence timer
+      if (silenceTimerRef.current) {
+        clearTimeout(silenceTimerRef.current)
+        silenceTimerRef.current = null
+      }
+    } else {
+      // Start silence timer if not already running and minimum recording time has passed
+      if (!silenceTimerRef.current && recordingStartTimeRef.current) {
+        const recordingDuration = Date.now() - recordingStartTimeRef.current
+        if (recordingDuration >= VAD_CONFIG.MIN_RECORDING_TIME) {
+          silenceTimerRef.current = setTimeout(() => {
+            console.log('[VAD] Silence detected - auto-stopping recording')
+            handleStopRecording()
+          }, VAD_CONFIG.SILENCE_DURATION)
+        }
+      }
+    }
+    
+    // Continue monitoring
+    if (vadActiveRef.current) {
+      requestAnimationFrame(monitorVoiceActivity)
+    }
+  }
+
+  const stopVoiceActivityDetection = () => {
+    vadActiveRef.current = false
+    setIsListening(false)
+    
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current)
+      silenceTimerRef.current = null
+    }
+    
+    if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+      audioContextRef.current.close()
+      audioContextRef.current = null
+    }
+    
+    analyserRef.current = null
+    console.log('[VAD] Voice activity detection stopped')
+  }
 
   const handlePlayAudio = async (text, messageId) => {
     console.log(`[TTS] Starting audio playback for message ${messageId}`)
@@ -104,10 +201,18 @@ function App() {
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
         sendAudioToApi(audioBlob)
         audioChunksRef.current = []
+        stopVoiceActivityDetection()
       }
 
       mediaRecorderRef.current.start()
       setIsRecording(true)
+      recordingStartTimeRef.current = Date.now()
+      
+      // Start voice activity detection
+      startVoiceActivityDetection(stream)
+      
+      console.log('[VAD] Recording started with voice activity detection enabled')
+      
     } catch (error) {
       console.error('Error accessing microphone:', error)
       setMessages(prev => [...prev, { 
@@ -149,6 +254,12 @@ function App() {
       mediaRecorderRef.current.stop()
       setIsRecording(false)
     }
+    
+    // Stop voice activity detection
+    stopVoiceActivityDetection()
+    
+    // Reset recording start time
+    recordingStartTimeRef.current = null
     
     // Close the microphone stream
     if (streamRef.current) {
@@ -296,6 +407,7 @@ function App() {
         })
         streamRef.current = null
       }
+      stopVoiceActivityDetection()
     }
     
     // Reset all states to initial values
@@ -306,6 +418,7 @@ function App() {
     setIsRecording(false)
     setIsTranscribing(false)
     setShowDisclaimer(true)
+    setIsListening(false)
     
     // Clear audio chunks
     audioChunksRef.current = []
@@ -535,18 +648,25 @@ function App() {
               className="flex-1 bg-white text-slate-800 rounded-lg px-4 py-2 border-[#00AEC7] border-2 outline-none focus:border-[#00AEC7] focus:ring-1 focus:outline-none"
               disabled={isLoading}
             />
-            <button
-              type="button"
-              onClick={isRecording ? handleStopRecording : handleStartRecording}
-              disabled={isLoading}
-              className={`p-2 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed outline-none focus:outline-none active:outline-none ${
-                isRecording 
-                  ? 'bg-red-500 hover:bg-red-600 text-white' 
-                  : 'bg-white hover:bg-gray-50 text-black border-2 border-red-500'
-              }`}
-            >
-              {isRecording ? <Square size={20} /> : <Mic size={20} />}
-            </button>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={isRecording ? handleStopRecording : handleStartRecording}
+                disabled={isLoading}
+                className={`p-2 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed outline-none focus:outline-none active:outline-none ${
+                  isRecording 
+                    ? 'bg-red-500 hover:bg-red-600 text-white' 
+                    : 'bg-white hover:bg-gray-50 text-black border-2 border-red-500'
+                }`}
+              >
+                {isRecording ? <Square size={20} /> : <Mic size={20} />}
+              </button>
+              {isRecording && (
+                <div className={`absolute -top-1 -right-1 w-3 h-3 rounded-full ${
+                  isListening ? 'bg-green-400 animate-pulse' : 'bg-yellow-400'
+                }`} title={isListening ? 'Voice detected - speaking' : 'Listening for voice'} />
+              )}
+            </div>
             <button
               type="submit"
               disabled={isLoading}
