@@ -153,9 +153,9 @@ async def chat(request: ChatRequest):
 async def transcribe_audio(file: UploadFile = File(...)):
     logger.info(f"Transcription request received for file: {file.filename}")
     try:
-        # Transcribe the audio file using GPT-4o-mini-transcribe
+        # Transcribe the audio file using GPT-4o-transcribe
         transcript = client.audio.transcriptions.create(
-            model="gpt-4o-mini-transcribe",
+            model="gpt-4o-transcribe",
             file=(file.filename, file.file)
         )
         

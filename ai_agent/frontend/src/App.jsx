@@ -8,7 +8,7 @@ function App() {
   const [messages, setMessages] = useState([])
   
   // Add logging for debugging
-  console.log('API_BASE_URL:', API_BASE_URL)
+  // console.log('API_BASE_URL:', API_BASE_URL)
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [playingAudioId, setPlayingAudioId] = useState(null)
