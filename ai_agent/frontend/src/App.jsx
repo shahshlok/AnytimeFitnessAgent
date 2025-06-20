@@ -239,7 +239,7 @@ function App() {
   
           if (now - startTime >= calibrationDuration) {
             const baseline = calibrationSamples.reduce((sum, v) => sum + v, 0) / calibrationSamples.length
-            calibratedThresholdRef.current = baseline * 0.8 // set threshold at 80% of baseline
+            calibratedThresholdRef.current = baseline * 0.3 // Lower Number= More sensitive = Less effort to speak
             isCalibrating = false
             console.log(`[SILENCE] Calibration complete. Baseline: ${baseline.toFixed(4)}, Threshold: ${calibratedThresholdRef.current.toFixed(4)}`)
           }
