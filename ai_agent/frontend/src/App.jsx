@@ -96,106 +96,188 @@ function App() {
     }
   }
 
+  // const detectSilence = (stream) => {
+  //   try {
+  //     // Create audio context for silence detection
+  //     audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)()
+  //     const audioContext = audioContextRef.current
+      
+  //     // Resume audio context if suspended
+  //     if (audioContext.state === 'suspended') {
+  //       audioContext.resume()
+  //     }
+      
+  //     // Create analyser node
+  //     const source = audioContext.createMediaStreamSource(stream)
+  //     const analyser = audioContext.createAnalyser()
+  //     analyser.fftSize = 2048
+  //     analyser.smoothingTimeConstant = 0.8
+      
+  //     source.connect(analyser)
+  //     analyserRef.current = analyser
+  //     isDetectingRef.current = true
+      
+  //     // Calibration state variables
+  //     const calibrationStartTime = Date.now()
+  //     const calibrationDuration = 1000 // 1 second
+  //     let calibrationSamples = []
+  //     let isCalibrated = false
+  //     let calibratedThreshold = 0.01 // fallback threshold
+      
+  //     console.log('[SILENCE] Silence detection started with dynamic calibration')
+      
+  //     const detectSilenceLoop = () => {
+  //       if (!isDetectingRef.current || !analyserRef.current) return
+        
+  //       const dataArray = new Uint8Array(analyser.frequencyBinCount)
+  //       analyser.getByteFrequencyData(dataArray)
+        
+  //       // Calculate current volume
+  //       const average = dataArray.reduce((sum, value) => sum + value, 0) / dataArray.length
+  //       const volume = average / 255
+        
+  //       const currentTime = Date.now()
+  //       const elapsedTime = currentTime - calibrationStartTime
+        
+  //       // Calibration phase (first 1 second)
+  //       if (!isCalibrated && elapsedTime < calibrationDuration) {
+  //         calibrationSamples.push(volume)
+          
+  //         // Continue monitoring during calibration
+  //         if (isDetectingRef.current) {
+  //           requestAnimationFrame(detectSilenceLoop)
+  //         }
+  //         return
+  //       }
+        
+  //       // Complete calibration if not already done
+  //       if (!isCalibrated) {
+  //         // Calculate baseline from calibration samples
+  //         const baselineVolume = calibrationSamples.reduce((sum, v) => sum + v, 0) / calibrationSamples.length
+          
+  //         // Set threshold to 15% below baseline (adjustable between 10-20%)
+  //         calibratedThreshold = Math.max(baselineVolume * 0.85, 0.005) // minimum threshold of 0.005
+          
+  //         isCalibrated = true
+  //         console.log(`[SILENCE] Calibration complete - baseline: ${baselineVolume.toFixed(4)}, threshold: ${calibratedThreshold.toFixed(4)}`)
+  //       }
+        
+  //       // Silence detection phase (after calibration)
+  //       const isSilent = volume < calibratedThreshold
+        
+  //       if (isSilent) {
+  //         // Start silence timer if not already started
+  //         if (!silenceTimerRef.current) {
+  //           console.log(`[SILENCE] Silence detected (volume: ${volume.toFixed(4)} < threshold: ${calibratedThreshold.toFixed(4)})`)
+  //           silenceTimerRef.current = setTimeout(() => {
+  //             console.log('[SILENCE] Silence timeout reached, stopping recording')
+  //             handleStopRecording()
+  //           }, 1000) // 1 second of silence
+  //         }
+  //       } else {
+  //         // Clear silence timer if sound detected
+  //         if (silenceTimerRef.current) {
+  //           console.log(`[SILENCE] Sound detected (volume: ${volume.toFixed(4)}), clearing timer`)
+  //           clearTimeout(silenceTimerRef.current)
+  //           silenceTimerRef.current = null
+  //         }
+  //       }
+        
+  //       // Continue monitoring
+  //       if (isDetectingRef.current) {
+  //         requestAnimationFrame(detectSilenceLoop)
+  //       }
+  //     }
+      
+  //     // Start detection immediately
+  //     detectSilenceLoop()
+      
+  //   } catch (error) {
+  //     console.error('[SILENCE] Error setting up silence detection:', error)
+  //   }
+  // }
+
   const detectSilence = (stream) => {
     try {
-      // Create audio context for silence detection
       audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)()
       const audioContext = audioContextRef.current
-      
-      // Resume audio context if suspended
+  
       if (audioContext.state === 'suspended') {
         audioContext.resume()
       }
-      
-      // Create analyser node
+  
       const source = audioContext.createMediaStreamSource(stream)
       const analyser = audioContext.createAnalyser()
       analyser.fftSize = 2048
       analyser.smoothingTimeConstant = 0.8
-      
+  
       source.connect(analyser)
       analyserRef.current = analyser
       isDetectingRef.current = true
-      
-      // Calibration state variables
-      const calibrationStartTime = Date.now()
-      const calibrationDuration = 1000 // 1 second
-      let calibrationSamples = []
-      let isCalibrated = false
-      let calibratedThreshold = 0.01 // fallback threshold
-      
-      console.log('[SILENCE] Silence detection started with dynamic calibration')
-      
+  
+      let isCalibrating = true
+      const calibrationDuration = 1000 // ms
+      const calibrationSamples = []
+      const startTime = performance.now()
+      const calibratedThresholdRef = { current: 0.02 } // default fallback threshold
+  
+      console.log('[SILENCE] Starting silence detection with calibration...')
+  
       const detectSilenceLoop = () => {
         if (!isDetectingRef.current || !analyserRef.current) return
-        
+  
         const dataArray = new Uint8Array(analyser.frequencyBinCount)
         analyser.getByteFrequencyData(dataArray)
-        
-        // Calculate current volume
+  
         const average = dataArray.reduce((sum, value) => sum + value, 0) / dataArray.length
         const volume = average / 255
-        
-        const currentTime = Date.now()
-        const elapsedTime = currentTime - calibrationStartTime
-        
-        // Calibration phase (first 1 second)
-        if (!isCalibrated && elapsedTime < calibrationDuration) {
+  
+        const now = performance.now()
+  
+        if (isCalibrating) {
           calibrationSamples.push(volume)
-          
-          // Continue monitoring during calibration
-          if (isDetectingRef.current) {
-            requestAnimationFrame(detectSilenceLoop)
-          }
-          return
-        }
-        
-        // Complete calibration if not already done
-        if (!isCalibrated) {
-          // Calculate baseline from calibration samples
-          const baselineVolume = calibrationSamples.reduce((sum, v) => sum + v, 0) / calibrationSamples.length
-          
-          // Set threshold to 15% below baseline (adjustable between 10-20%)
-          calibratedThreshold = Math.max(baselineVolume * 0.85, 0.005) // minimum threshold of 0.005
-          
-          isCalibrated = true
-          console.log(`[SILENCE] Calibration complete - baseline: ${baselineVolume.toFixed(4)}, threshold: ${calibratedThreshold.toFixed(4)}`)
-        }
-        
-        // Silence detection phase (after calibration)
-        const isSilent = volume < calibratedThreshold
-        
-        if (isSilent) {
-          // Start silence timer if not already started
-          if (!silenceTimerRef.current) {
-            console.log(`[SILENCE] Silence detected (volume: ${volume.toFixed(4)} < threshold: ${calibratedThreshold.toFixed(4)})`)
-            silenceTimerRef.current = setTimeout(() => {
-              console.log('[SILENCE] Silence timeout reached, stopping recording')
-              handleStopRecording()
-            }, 1000) // 1 second of silence
+  
+          if (now - startTime >= calibrationDuration) {
+            const baseline = calibrationSamples.reduce((sum, v) => sum + v, 0) / calibrationSamples.length
+            calibratedThresholdRef.current = baseline * 0.8 // set threshold at 80% of baseline
+            isCalibrating = false
+            console.log(`[SILENCE] Calibration complete. Baseline: ${baseline.toFixed(4)}, Threshold: ${calibratedThresholdRef.current.toFixed(4)}`)
           }
         } else {
-          // Clear silence timer if sound detected
-          if (silenceTimerRef.current) {
-            console.log(`[SILENCE] Sound detected (volume: ${volume.toFixed(4)}), clearing timer`)
-            clearTimeout(silenceTimerRef.current)
-            silenceTimerRef.current = null
+          const isSilent = volume < calibratedThresholdRef.current
+  
+          if (isSilent) {
+            if (!silenceTimerRef.current) {
+              console.log('[SILENCE] Silence detected, starting timer')
+              silenceTimerRef.current = setTimeout(() => {
+                console.log('[SILENCE] Silence timeout reached, stopping recording')
+                handleStopRecording()
+              }, 1000)
+            }
+          } else {
+            if (silenceTimerRef.current) {
+              console.log('[SILENCE] Sound detected, clearing timer')
+              clearTimeout(silenceTimerRef.current)
+              silenceTimerRef.current = null
+            }
           }
         }
-        
-        // Continue monitoring
+  
         if (isDetectingRef.current) {
           requestAnimationFrame(detectSilenceLoop)
         }
       }
-      
-      // Start detection immediately
-      detectSilenceLoop()
-      
+  
+      // Give the mic a moment to settle
+      setTimeout(() => {
+        detectSilenceLoop()
+      }, 300)
+  
     } catch (error) {
-      console.error('[SILENCE] Error setting up silence detection:', error)
+      console.error('[SILENCE] Error during silence detection:', error)
     }
   }
+  
 
   const stopSilenceDetection = () => {
     console.log('[SILENCE] Stopping silence detection')
