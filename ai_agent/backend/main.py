@@ -1,14 +1,19 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi import FastAPI, HTTPException, UploadFile, File, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from typing import List, Dict
+from typing import List, Dict, Tuple, Any
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 import os
 import logging
 import sys
+import time
 from datetime import datetime
 from openai import OpenAI
 from dotenv import load_dotenv
+from database import get_db
+from models import Conversation, ChatMessage, UserFeedback
 
 # Load environment variables
 load_dotenv()
@@ -36,7 +41,8 @@ logger.info(f"CORS allowed origins: {allowed_origins}")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
+    # allow_origins=allowed_origins,
+    allow_origins= ["*"]
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -82,15 +88,21 @@ You must ALWAYS speak from a first-person perspective as a helpful receptionist.
 class ChatRequest(BaseModel):
     message: str
     history: List[Dict[str, str]]
+    session_id: str
+    user_agent: str | None = None
 
 class ChatResponse(BaseModel):
     reply: str
-
+    assistant_message_id: int
 
 class SpeakRequest(BaseModel):
     text: str
 
-async def get_ai_response(message: str, history: List[Dict[str, str]]) -> str:
+class FeedbackRequest(BaseModel):
+    message_id: int
+    rating: int
+
+async def get_ai_response(message: str, history: List[Dict[str, str]]) -> Tuple[str, Any]:
     try:
         # Get vector store ID from environment
         vector_store_id = os.getenv("VECTOR_STORE_ID")
@@ -126,7 +138,7 @@ async def get_ai_response(message: str, history: List[Dict[str, str]]) -> str:
         
         logger.info(f"AI response generated: {response_text[:100]}...")
 
-        return response_text
+        return response_text, response
 
     except Exception as e:
         logger.error(f"Error in get_ai_response: {str(e)}", exc_info=True)
@@ -136,17 +148,92 @@ async def get_ai_response(message: str, history: List[Dict[str, str]]) -> str:
         )
 
 @app.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest):
+async def chat(request: ChatRequest, req: Request, db: AsyncSession = Depends(get_db)):
     logger.info(f"Chat request received: {request.message[:100]}...")
     try:
-        reply = await get_ai_response(request.message, request.history)
-        logger.info(f"Chat response sent: {reply[:100]}...")
-        return ChatResponse(reply=reply)
+        # Find or create conversation
+        stmt = select(Conversation).where(Conversation.session_id == request.session_id)
+        result = await db.execute(stmt)
+        conversation = result.scalar_one_or_none()
+        
+        if not conversation:
+            user_agent = request.user_agent or req.headers.get("user-agent")
+            conversation = Conversation(
+                session_id=request.session_id,
+                user_agent=user_agent
+            )
+            db.add(conversation)
+            await db.flush()  # Get the ID without committing
+        
+        # Save user message
+        user_message = ChatMessage(
+            conversation_id=conversation.id,
+            role="user",
+            content=request.message
+        )
+        db.add(user_message)
+        await db.flush()
+        
+        # Get AI response with timing
+        start_time = time.time()
+        reply_text, api_response = await get_ai_response(request.message, request.history)
+        response_time_ms = int((time.time() - start_time) * 1000)
+        
+        # Analyze if response is unanswered
+        is_unanswered = any(phrase in reply_text.lower() for phrase in [
+            "i cannot help", "i don't have information", "i can't help",
+            "not available", "cannot provide", "don't have that information"
+        ])
+        
+        # Extract usage metadata from API response
+        api_metadata = None
+        if hasattr(api_response, 'usage'):
+            api_metadata = api_response.usage.model_dump() if hasattr(api_response.usage, 'model_dump') else dict(api_response.usage)
+        
+        # Save assistant message
+        assistant_message = ChatMessage(
+            conversation_id=conversation.id,
+            role="assistant",
+            content=reply_text,
+            response_time_ms=response_time_ms,
+            is_unanswered=is_unanswered,
+            api_metadata=api_metadata
+        )
+        db.add(assistant_message)
+        await db.commit()
+        await db.refresh(assistant_message)  # Refresh to get the actual ID value
+        
+        logger.info(f"Chat response sent: {reply_text[:100]}...")
+        return ChatResponse(reply=reply_text, assistant_message_id=assistant_message.id)
+        
     except Exception as e:
+        await db.rollback()
         logger.error(f"Error in chat endpoint: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=500,
             detail="An error occurred while processing your request. Please try again later."
+        )
+
+@app.post("/feedback")
+async def submit_feedback(request: FeedbackRequest, db: AsyncSession = Depends(get_db)):
+    logger.info(f"Feedback request received for message {request.message_id}: {request.rating}")
+    try:
+        feedback = UserFeedback(
+            message_id=request.message_id,
+            rating=request.rating
+        )
+        db.add(feedback)
+        await db.commit()
+        
+        logger.info(f"Feedback saved successfully for message {request.message_id}")
+        return {"status": "success"}
+        
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Error in feedback endpoint: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail="An error occurred while saving feedback. Please try again later."
         )
 
 @app.post("/transcribe")

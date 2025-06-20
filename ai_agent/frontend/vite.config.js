@@ -7,12 +7,12 @@ export default defineConfig({
   server: {
     host: '0.0.0.0', // Bind to all network interfaces
     port: 5173,
-    allowedHosts: ['anytime-fitness-stg.dxfactor.com'],
+    // allowedHosts: ['anytime-fitness-stg.dxfactor.com'],
   },
-  preview: {
-    host: '0.0.0.0',
-    port: 5173,
-    allowedHosts: ['anytime-fitness-stg.dxfactor.com'],
-  },
+  // preview: {
+  //   host: '0.0.0.0',
+  //   port: 5173,
+  //   allowedHosts: ['anytime-fitness-stg.dxfactor.com'],
+  // },
 })
 

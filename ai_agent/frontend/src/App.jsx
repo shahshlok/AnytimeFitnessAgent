@@ -1,11 +1,14 @@
 import { useState, useEffect, useRef } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { SendHorizontal, Volume2, LoaderCircle, Mic, Square, RotateCcw } from 'lucide-react'
+import { SendHorizontal, Volume2, LoaderCircle, Mic, Square, RotateCcw, ThumbsUp, ThumbsDown } from 'lucide-react'
+import { v4 as uuidv4 } from 'uuid'
 
 function App() {
-  const API_BASE_URL = 'https://anytime-fitness-stg-api.dxfactor.com'
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
   const [messages, setMessages] = useState([])
+  const [sessionId, setSessionId] = useState('')
+  const [feedbackSent, setFeedbackSent] = useState({})
   
   // Add logging for debugging
   console.log('API_BASE_URL:', API_BASE_URL)
@@ -23,6 +26,18 @@ function App() {
   const streamRef = useRef(null)
   const chatAbortControllerRef = useRef(null)
   const transcribeAbortControllerRef = useRef(null)
+
+  // Initialize session ID on component mount
+  useEffect(() => {
+    const savedSessionId = sessionStorage.getItem('sessionId')
+    if (savedSessionId) {
+      setSessionId(savedSessionId)
+    } else {
+      const newSessionId = uuidv4()
+      setSessionId(newSessionId)
+      sessionStorage.setItem('sessionId', newSessionId)
+    }
+  }, [])
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -73,6 +88,38 @@ function App() {
       }
     } finally {
       setPlayingAudioId(null)
+    }
+  }
+
+  const handleFeedback = async (messageId, rating) => {
+    try {
+      console.log(`[FEEDBACK] Submitting feedback for message ${messageId}: ${rating}`)
+      const response = await fetch(`${API_BASE_URL}/feedback`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message_id: messageId,
+          rating: rating
+        })
+      })
+
+      if (!response.ok) {
+        console.error(`[FEEDBACK] HTTP Error: ${response.status} ${response.statusText}`)
+        throw new Error(`Failed to submit feedback: ${response.status}`)
+      }
+
+      const result = await response.json()
+      console.log('[FEEDBACK] Feedback submitted successfully:', result)
+      
+      // Update feedbackSent state to disable buttons for this message
+      setFeedbackSent(prev => ({
+        ...prev,
+        [messageId]: rating
+      }))
+    } catch (error) {
+      console.error('[FEEDBACK] Error submitting feedback:', error)
     }
   }
 
@@ -232,7 +279,9 @@ function App() {
         },
         body: JSON.stringify({
           message: transcribed_text,
-          history: apiHistory
+          history: apiHistory,
+          session_id: sessionId,
+          user_agent: navigator.userAgent
         }),
         signal: chatAbortControllerRef.current.signal
       })
@@ -246,11 +295,11 @@ function App() {
         throw new Error(`Failed to get AI response: ${chatResponse.status}`)
       }
 
-      const { reply } = await chatResponse.json()
+      const { reply, assistant_message_id } = await chatResponse.json()
       console.log(`[CHAT] AI response received: "${reply.substring(0, 100)}..."`)
       
-      // Add assistant's message to chat
-      setMessages(prev => [...prev, { id: Date.now() + 1, role: 'assistant', content: reply }])
+      // Add assistant's message to chat with the ID from the backend
+      setMessages(prev => [...prev, { id: assistant_message_id, role: 'assistant', content: reply }])
       console.log('[VOICE] Voice processing pipeline completed successfully')
     } catch (error) {
       if (error.name === 'AbortError') {
@@ -306,6 +355,12 @@ function App() {
     setIsRecording(false)
     setIsTranscribing(false)
     setShowDisclaimer(true)
+    setFeedbackSent({})
+    
+    // Generate new session ID for new chat
+    const newSessionId = uuidv4()
+    setSessionId(newSessionId)
+    sessionStorage.setItem('sessionId', newSessionId)
     
     // Clear audio chunks
     audioChunksRef.current = []
@@ -350,7 +405,9 @@ function App() {
         },
         body: JSON.stringify({
           message: originalInput,
-          history: apiHistory
+          history: apiHistory,
+          session_id: sessionId,
+          user_agent: navigator.userAgent
         }),
         signal: chatAbortControllerRef.current.signal
       })
@@ -366,7 +423,7 @@ function App() {
 
       const data = await response.json()
       console.log(`[CHAT] AI response received: "${data.reply.substring(0, 100)}..."`)
-      setMessages(prev => [...prev, { id: Date.now(), role: 'assistant', content: data.reply }])
+      setMessages(prev => [...prev, { id: data.assistant_message_id, role: 'assistant', content: data.reply }])
       console.log('[CHAT] Text chat completed successfully')
     } catch (error) {
       if (error.name === 'AbortError') {
@@ -391,11 +448,6 @@ function App() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 m-auto">
-      {/* {showResetPopup && (
-        <div className="absolute top-0 right-0 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 dark:bg-green-200 dark:text-white">
-          Chat cleared successfully!
-        </div>
-      )} */}
       <div className="bg-white flex flex-col max-w-[95vw] w-full h-[95vh] rounded-2xl drop-shadow-2xl"style={{backgroundColor: '#ffffff'}}>
         <header className="p-4  border-slate-700 flex justify-center items-center relative">
           <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR27TJM9maic67yLPtJmNFfe1BcQdQi-GP8HQ&s" alt="Anytime Fitness" className="h-8" />
@@ -470,26 +522,56 @@ function App() {
                 >
                   <div className="flex items-start gap-2">
                     {message.role === 'assistant' ? (
-                      <div className="prose max-w-none prose-p:text-black prose-li:text-black prose-headings:text-black prose-strong:text-black">
+                      <div className="prose max-w-none prose-p:text-black prose-li:text-black prose-headings:text-black prose-strong:text-black flex-1">
                         <ReactMarkdown remarkPlugins={[remarkGfm]}>
                           {message.content}
                         </ReactMarkdown>
                       </div>
                     ) : (
-                      message.content
+                      <div className="flex-1">{message.content}</div>
                     )}
                     {message.role === 'assistant' && (
-                      <button
-                        onClick={() => handlePlayAudio(message.content, message.id)}
-                        className="p-1.5 rounded-full hover:bg-gray-200 transition-colors"
-                        disabled={playingAudioId === message.id}
-                      >
-                        {playingAudioId === message.id ? (
-                          <LoaderCircle size={16} className="animate-spin" />
-                        ) : (
-                          <Volume2 size={16} />
-                        )}
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => handlePlayAudio(message.content, message.id)}
+                          className="p-1.5 rounded-full hover:bg-gray-200 transition-colors"
+                          disabled={playingAudioId === message.id}
+                        >
+                          {playingAudioId === message.id ? (
+                            <LoaderCircle size={16} className="animate-spin" />
+                          ) : (
+                            <Volume2 size={16} />
+                          )}
+                        </button>
+                        <button
+                          onClick={() => handleFeedback(message.id, 1)}
+                          className={`p-1.5 rounded-full transition-colors ${
+                            feedbackSent[message.id] === 1
+                              ? 'bg-green-100 text-green-600'
+                              : feedbackSent[message.id]
+                              ? 'opacity-50 cursor-not-allowed'
+                              : 'hover:bg-gray-200'
+                          }`}
+                          disabled={!!feedbackSent[message.id]}
+                          title="Good response"
+                        >
+                          <ThumbsUp size={16} />
+                        </button>
+                        <button
+                          onClick={() => handleFeedback(message.id, -1)}
+                          className={`p-1.5 rounded-full transition-colors ${
+                            feedbackSent[message.id] === -1
+                              ? 'bg-red-100 text-red-600'
+                              : feedbackSent[message.id]
+                              ? 'opacity-50 cursor-not-allowed'
+                              : 'hover:bg-gray-200'
+                          }`}
+                          disabled={!!feedbackSent[message.id]}
+                          title="Poor response"
+                        >
+                          <ThumbsDown size={16} />
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>

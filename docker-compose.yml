@@ -1,0 +1,49 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: af_db
+    environment:
+      POSTGRES_USER: af_user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: anytime_fitness_chatbot
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./schema.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U af_user -d anytime_fitness_chatbot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    container_name: af_backend
+    build:
+      context: ./ai_agent/backend
+      dockerfile: Dockerfile
+    # === CRITICAL CHANGE HERE ===
+    # Load environment variables from the root .env file
+    env_file:
+      - ./.env
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./ai_agent/backend:/app
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    container_name: af_frontend
+    build:
+      context: ./ai_agent/frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
