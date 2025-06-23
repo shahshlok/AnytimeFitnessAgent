@@ -6,3 +6,4 @@ Scraping Scripts/
 /pycache/
 /venv
 CLAUDE.md
+.env.prod
