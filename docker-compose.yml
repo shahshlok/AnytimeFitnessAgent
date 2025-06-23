@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  # The PostgreSQL Database Service
+  db:
+    image: postgres:15
+    container_name: af_postgres_db_local
+    restart: "no"
+    environment:
+      # --- IMPORTANT ---
+      # These are default credentials for LOCAL DEVELOPMENT ONLY.
+      # These MUST be changed for production using a secrets management system.
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: af_chatbot_db
+    volumes:
+      # This named volume persists the database data on your host machine
+      # so you don't lose data when you stop/restart the container.
+      - postgres_data_local:/var/lib/postgresql/data
+    ports:
+      # Maps port 5432 on your host machine to port 5432 in the container.
+      # This lets you connect to the DB from your local machine with a GUI tool if needed.
+      - "5432:5432"
+
+  # The FastAPI Backend Service
+  backend:
+    build:
+      # The build context is the directory where the Dockerfile is located.
+      context: ./ai_agent/backend
+      dockerfile: Dockerfile
+    container_name: af_fastapi_backend_local
+    restart: "no"
+    depends_on:
+      # This ensures the 'db' service is started before the 'backend' service.
+      - db
+    environment:
+      # The DATABASE_URL uses the service name 'db' as the hostname.
+      # Docker's internal DNS resolves 'db' to the database container's IP address.
+      DATABASE_URL: postgresql://anytime_fitness_user:anytime_fitness_password@db:5432/af_chatbot_db
+      
+      # These values will be read from a .env file in your root directory.
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      VECTOR_STORE_ID: ${VECTOR_STORE_ID}
+
+      # Explicitly allow your local React dev server to communicate with the backend.
+      ALLOWED_ORIGINS: "http://localhost:5173"
+    ports:
+      # Maps port 8000 on your host machine to port 7479 inside the container.
+      # You will access your API at http://localhost:8000
+      - "8000:7479"
+
+# Top-level volume definition for persistence
+volumes:
+  postgres_data_local:a
