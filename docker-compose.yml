@@ -46,7 +46,7 @@ services:
     ports:
       # Maps port 8000 on your host machine to port 7479 inside the container.
       # You will access your API at http://localhost:8000
-      - "8000:7479"
+      - "7479:7479"
 
 # Top-level volume definition for persistence
 volumes:
