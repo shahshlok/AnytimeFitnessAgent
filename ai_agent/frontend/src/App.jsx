@@ -3,9 +3,20 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { SendHorizontal, Volume2, LoaderCircle, Mic, Square, RotateCcw } from 'lucide-react'
 
+// Browser-safe UUID generator function
+const generateUUID = () => {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0
+    const v = c == 'x' ? r : (r & 0x3 | 0x8)
+    return v.toString(16)
+  })
+}
+
 function App() {
-  const API_BASE_URL = 'https://anytime-fitness-stg-api.dxfactor.com'
+  // const API_BASE_URL = 'https://anytime-fitness-stg-api.dxfactor.com'
+  const API_BASE_URL = 'http://localhost:8000'
   const [messages, setMessages] = useState([])
+  const [sessionId, setSessionId] = useState(null)
   
   // Add logging for debugging
   // console.log('API_BASE_URL:', API_BASE_URL)
@@ -33,6 +44,23 @@ function App() {
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
+
+  // Session management - run once on component mount
+  useEffect(() => {
+    // Check if sessionId exists in localStorage
+    const storedSessionId = localStorage.getItem('anytimeFitnessSessionId')
+    
+    if (storedSessionId) {
+      console.log('[SESSION] Using existing session ID from localStorage:', storedSessionId)
+      setSessionId(storedSessionId)
+    } else {
+      // Generate new UUID and store it
+      const newSessionId = generateUUID()
+      console.log('[SESSION] Generated new session ID:', newSessionId)
+      localStorage.setItem('anytimeFitnessSessionId', newSessionId)
+      setSessionId(newSessionId)
+    }
+  }, []) // Empty dependency array - runs only once on mount
 
   useEffect(() => {
     scrollToBottom()
@@ -348,7 +376,9 @@ function App() {
         },
         body: JSON.stringify({
           message: transcribed_text,
-          history: apiHistory
+          history: apiHistory,
+          session_id: sessionId || generateUUID(),
+          user_agent: navigator.userAgent
         }),
         signal: chatAbortControllerRef.current.signal
       })
@@ -458,7 +488,9 @@ function App() {
         },
         body: JSON.stringify({
           message: originalInput,
-          history: apiHistory
+          history: apiHistory,
+          session_id: sessionId || generateUUID(),
+          user_agent: navigator.userAgent
         }),
         signal: chatAbortControllerRef.current.signal
       })

@@ -42,7 +42,7 @@ services:
       VECTOR_STORE_ID: ${VECTOR_STORE_ID}
 
       # Explicitly allow your local React dev server to communicate with the backend.
-      ALLOWED_ORIGINS: "http://localhost:5173"
+      ALLOWED_ORIGINS: "*"
     ports:
       # Maps port 8000 on your host machine to port 7479 inside the container.
       # You will access your API at http://localhost:8000
