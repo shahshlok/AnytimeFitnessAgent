@@ -1,14 +1,22 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi import FastAPI, HTTPException, UploadFile, File, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from typing import List, Dict
+from typing import List, Dict, Tuple, Any
+from sqlalchemy.orm import Session
 import os
 import logging
 import sys
+import uuid
+import time
 from datetime import datetime
 from openai import OpenAI
 from dotenv import load_dotenv
+
+# Import database modules
+import database
+import models
+import crud
 
 # Load environment variables
 load_dotenv()
@@ -26,6 +34,10 @@ logger = logging.getLogger(__name__)
 
 # Initialize FastAPI app
 app = FastAPI(title="Anytime Fitness AI Chatbot API")
+
+# Create database tables on startup
+models.Base.metadata.create_all(bind=database.engine)
+logger.info("Database tables created/verified")
 
 # Log startup
 logger.info("Starting Anytime Fitness AI Chatbot API")
@@ -83,6 +95,8 @@ You must ALWAYS speak from a first-person perspective as a helpful receptionist.
 class ChatRequest(BaseModel):
     message: str
     history: List[Dict[str, str]]
+    session_id: uuid.UUID | None = None
+    user_agent: str | None = None
 
 class ChatResponse(BaseModel):
     reply: str
@@ -91,7 +105,7 @@ class ChatResponse(BaseModel):
 class SpeakRequest(BaseModel):
     text: str
 
-async def get_ai_response(message: str, history: List[Dict[str, str]]) -> str:
+async def get_ai_response(message: str, history: List[Dict[str, str]]) -> Tuple[str, Dict[str, Any]]:
     try:
         # Get vector store ID from environment
         vector_store_id = os.getenv("VECTOR_STORE_ID")
@@ -105,8 +119,10 @@ async def get_ai_response(message: str, history: List[Dict[str, str]]) -> str:
 
         # Make API call to OpenAI
         logger.info(f"Making OpenAI API call for message: {message[:100]}...")
+        start_time = time.time()
+        model_name = "gpt-4.1-mini"
         response = client.responses.create(
-            model="gpt-4.1-mini",
+            model=model_name,
             input=conversation_messages,
             tools=[{
                     "type": "file_search",
@@ -114,6 +130,8 @@ async def get_ai_response(message: str, history: List[Dict[str, str]]) -> str:
                 }],
             # max_output_tokens=100
         )
+        end_time = time.time()
+        latency_ms = int((end_time - start_time) * 1000)
 
         # Extract the assistant's reply from response.output
         response_text = None
@@ -126,8 +144,15 @@ async def get_ai_response(message: str, history: List[Dict[str, str]]) -> str:
             raise HTTPException(status_code=500, detail="Failed to get response from AI model")
         
         logger.info(f"AI response generated: {response_text[:100]}...")
+        
+        # Prepare metadata
+        metadata = {
+            "model": model_name,
+            "latency_ms": latency_ms,
+            "vector_store_id": vector_store_id
+        }
 
-        return response_text
+        return response_text, metadata
 
     except Exception as e:
         logger.error(f"Error in get_ai_response: {str(e)}", exc_info=True)
@@ -137,10 +162,40 @@ async def get_ai_response(message: str, history: List[Dict[str, str]]) -> str:
         )
 
 @app.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest):
+async def chat(request: ChatRequest, fastapi_request: Request, db: Session = Depends(database.get_db)):
     logger.info(f"Chat request received: {request.message[:100]}...")
     try:
-        reply = await get_ai_response(request.message, request.history)
+        # Generate session_id if not provided
+        session_id = request.session_id or uuid.uuid4()
+        
+        # Get user agent from request headers if not provided in payload
+        user_agent = request.user_agent or fastapi_request.headers.get("user-agent")
+        
+        # Get or create conversation
+        conversation = crud.get_or_create_conversation(db, session_id)
+        
+        # Log user message
+        user_metadata = {"input_type": "text"}
+        crud.create_message(
+            db=db,
+            conversation_id=conversation.id,
+            role="user",
+            content=request.message,
+            extra_data_payload=user_metadata
+        )
+        
+        # Get AI response with metadata
+        reply, ai_metadata = await get_ai_response(request.message, request.history)
+        
+        # Log assistant message
+        crud.create_message(
+            db=db,
+            conversation_id=conversation.id,
+            role="assistant",
+            content=reply,
+            extra_data_payload=ai_metadata
+        )
+        
         logger.info(f"Chat response sent: {reply[:100]}...")
         return ChatResponse(reply=reply)
     except Exception as e:

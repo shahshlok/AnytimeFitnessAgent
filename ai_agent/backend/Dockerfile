@@ -10,11 +10,11 @@ WORKDIR /app
 # The build context is ai_agent/backend/, so we go up two levels to the root.
 # This step is done separately to leverage Docker's layer caching.
 # If requirements.txt doesn't change, Docker won't re-install dependencies on every build.
-COPY ../../requirements.txt .
+COPY requirements_copy.txt .
 
 # Step 4: Install any needed packages specified in requirements.txt
 # --no-cache-dir makes the image smaller.
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements_copy.txt
 
 # Step 5: Copy the rest of your application's code into the container
 # This copies everything from ai_agent/backend/ into /app in the container.
