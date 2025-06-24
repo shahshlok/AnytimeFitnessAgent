@@ -4,12 +4,13 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import List, Dict, Tuple, Any
 from sqlalchemy.orm import Session
+from sqlalchemy import func, extract, desc, Float
 import os
 import logging
 import sys
 import uuid
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from openai import OpenAI
 from dotenv import load_dotenv
 
@@ -148,8 +149,7 @@ async def get_ai_response(message: str, history: List[Dict[str, str]]) -> Tuple[
         # Prepare metadata
         metadata = {
             "model": model_name,
-            "latency_ms": latency_ms,
-            "vector_store_id": vector_store_id
+            "latency_ms": latency_ms
         }
 
         return response_text, metadata
@@ -254,3 +254,222 @@ async def text_to_speech(request: SpeakRequest):
             status_code=500,
             detail="An error occurred while generating speech. Please try again later."
         )
+
+# Analytics endpoints
+@app.get("/analytics/overview")
+async def get_analytics_overview(db: Session = Depends(database.get_db)):
+    """Get overview KPI metrics"""
+    try:
+        # Get current date and 30 days ago for comparison
+        now = datetime.now()
+        thirty_days_ago = now - timedelta(days=30)
+        sixty_days_ago = now - timedelta(days=60)
+        
+        # Total conversations
+        total_conversations = db.query(func.count(models.Conversation.id)).scalar()
+        
+        # Total messages
+        total_messages = db.query(func.count(models.Message.id)).scalar()
+        
+        # Average response time (from assistant messages)
+        avg_response_time = db.query(
+            func.avg(func.cast(models.Message.extra_data['latency_ms'].astext, models.Float))
+        ).filter(models.Message.role == 'assistant').scalar()
+        
+        # Conversations in last 30 days vs previous 30 days
+        current_period_conversations = db.query(func.count(models.Conversation.id)).filter(
+            models.Conversation.started_at >= thirty_days_ago
+        ).scalar()
+        
+        previous_period_conversations = db.query(func.count(models.Conversation.id)).filter(
+            models.Conversation.started_at >= sixty_days_ago,
+            models.Conversation.started_at < thirty_days_ago
+        ).scalar()
+        
+        # Calculate percentage change
+        conv_change = 0
+        if previous_period_conversations > 0:
+            conv_change = ((current_period_conversations - previous_period_conversations) / previous_period_conversations) * 100
+        
+        # Messages in last 30 days vs previous 30 days
+        current_period_messages = db.query(func.count(models.Message.id)).filter(
+            models.Message.created_at >= thirty_days_ago
+        ).scalar()
+        
+        previous_period_messages = db.query(func.count(models.Message.id)).filter(
+            models.Message.created_at >= sixty_days_ago,
+            models.Message.created_at < thirty_days_ago
+        ).scalar()
+        
+        # Calculate percentage change
+        msg_change = 0
+        if previous_period_messages > 0:
+            msg_change = ((current_period_messages - previous_period_messages) / previous_period_messages) * 100
+        
+        return {
+            "total_conversations": total_conversations or 0,
+            "total_messages": total_messages or 0,
+            "avg_response_time": round(avg_response_time / 1000, 2) if avg_response_time else 0,  # Convert to seconds
+            "conversations_change": round(conv_change, 1),
+            "messages_change": round(msg_change, 1),
+            "error_rate": 0.5  # Placeholder for now
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in analytics overview: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Error fetching analytics overview")
+
+@app.get("/analytics/conversations/daily")
+async def get_daily_conversations(db: Session = Depends(database.get_db)):
+    """Get daily conversation trends for the last 30 days"""
+    try:
+        thirty_days_ago = datetime.now() - timedelta(days=30)
+        
+        results = db.query(
+            func.date(models.Conversation.started_at).label('date'),
+            func.count(models.Conversation.id).label('conversations')
+        ).filter(
+            models.Conversation.started_at >= thirty_days_ago
+        ).group_by(
+            func.date(models.Conversation.started_at)
+        ).order_by(
+            func.date(models.Conversation.started_at)
+        ).all()
+        
+        return [
+            {
+                "date": result.date.isoformat(),
+                "conversations": result.conversations
+            }
+            for result in results
+        ]
+        
+    except Exception as e:
+        logger.error(f"Error in daily conversations: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Error fetching daily conversations")
+
+@app.get("/analytics/messages/volume")
+async def get_message_volume(db: Session = Depends(database.get_db)):
+    """Get message volume by day (user vs assistant)"""
+    try:
+        seven_days_ago = datetime.now() - timedelta(days=7)
+        
+        results = db.query(
+            func.date(models.Message.created_at).label('date'),
+            models.Message.role,
+            func.count(models.Message.id).label('count')
+        ).filter(
+            models.Message.created_at >= seven_days_ago
+        ).group_by(
+            func.date(models.Message.created_at),
+            models.Message.role
+        ).order_by(
+            func.date(models.Message.created_at)
+        ).all()
+        
+        # Process results into the format expected by the dashboard
+        data_dict = {}
+        for result in results:
+            date_str = result.date.strftime("%b %d")
+            if date_str not in data_dict:
+                data_dict[date_str] = {"date": date_str, "userMessages": 0, "assistantMessages": 0}
+            
+            if result.role == "user":
+                data_dict[date_str]["userMessages"] = result.count
+            elif result.role == "assistant":
+                data_dict[date_str]["assistantMessages"] = result.count
+        
+        return list(data_dict.values())
+        
+    except Exception as e:
+        logger.error(f"Error in message volume: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Error fetching message volume")
+
+@app.get("/analytics/input-methods")
+async def get_input_methods(db: Session = Depends(database.get_db)):
+    """Get input method distribution (text vs voice)"""
+    try:
+        results = db.query(
+            func.coalesce(models.Message.extra_data['input_type'].astext, 'text').label('input_type'),
+            func.count(models.Message.id).label('count')
+        ).filter(
+            models.Message.role == 'user'
+        ).group_by(
+            models.Message.extra_data['input_type'].astext
+        ).all()
+        
+        total_messages = sum(result.count for result in results)
+        
+        return [
+            {
+                "name": "Text Input" if result.input_type == "text" else "Voice Input",
+                "value": round((result.count / total_messages) * 100, 1) if total_messages > 0 else 0,
+                "color": "#8b5cf6" if result.input_type == "text" else "#06b6d4"
+            }
+            for result in results
+        ]
+        
+    except Exception as e:
+        logger.error(f"Error in input methods: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Error fetching input methods")
+
+@app.get("/analytics/questions/top")
+async def get_top_questions(db: Session = Depends(database.get_db)):
+    """Get top 10 most frequent user questions"""
+    try:
+        results = db.query(
+            models.Message.content,
+            func.count(models.Message.id).label('count')
+        ).filter(
+            models.Message.role == 'user'
+        ).group_by(
+            models.Message.content
+        ).order_by(
+            desc(func.count(models.Message.id))
+        ).limit(10).all()
+        
+        return [
+            {
+                "question": result.content,
+                "count": result.count
+            }
+            for result in results
+        ]
+        
+    except Exception as e:
+        logger.error(f"Error in top questions: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Error fetching top questions")
+
+@app.get("/analytics/performance/response-times")
+async def get_response_times(db: Session = Depends(database.get_db)):
+    """Get response time trends by week"""
+    try:
+        four_weeks_ago = datetime.now() - timedelta(weeks=4)
+        
+        results = db.query(
+            extract('week', models.Message.created_at).label('week'),
+            extract('year', models.Message.created_at).label('year'),
+            func.avg(func.cast(models.Message.extra_data['latency_ms'].astext, models.Float)).label('avg_time')
+        ).filter(
+            models.Message.role == 'assistant',
+            models.Message.created_at >= four_weeks_ago,
+            models.Message.extra_data['latency_ms'].astext != None
+        ).group_by(
+            extract('week', models.Message.created_at),
+            extract('year', models.Message.created_at)
+        ).order_by(
+            extract('year', models.Message.created_at),
+            extract('week', models.Message.created_at)
+        ).all()
+        
+        return [
+            {
+                "date": f"Week {int(result.week)}",
+                "responseTime": round(result.avg_time / 1000, 2) if result.avg_time else 0  # Convert to seconds
+            }
+            for result in results
+        ]
+        
+    except Exception as e:
+        logger.error(f"Error in response times: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Error fetching response times")

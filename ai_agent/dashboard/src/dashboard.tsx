@@ -1,4 +1,4 @@
-import React from "react"
+import React, { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -39,7 +39,61 @@ import {
   AreaChart,
 } from "recharts"
 
-// Sample data for charts
+// API Configuration
+const API_BASE_URL = "http://localhost:7479"
+
+// Types for API responses
+interface OverviewData {
+  total_conversations: number
+  total_messages: number
+  avg_response_time: number
+  conversations_change: number
+  messages_change: number
+  error_rate: number
+}
+
+interface DailyConversation {
+  date: string
+  conversations: number
+}
+
+interface MessageVolume {
+  date: string
+  userMessages: number
+  assistantMessages: number
+}
+
+interface InputMethod {
+  name: string
+  value: number
+  color: string
+}
+
+interface TopQuestion {
+  question: string
+  count: number
+}
+
+interface ResponseTime {
+  date: string
+  responseTime: number
+}
+
+// API utility functions
+const fetchData = async (endpoint: string) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`)
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+    return await response.json()
+  } catch (error) {
+    console.error(`Error fetching ${endpoint}:`, error)
+    return null
+  }
+}
+
+// Sample data for charts (fallback data)
 const dailyConversationsData = [
   { date: "2024-01-01", conversations: 145 },
   { date: "2024-01-02", conversations: 167 },
@@ -221,8 +275,65 @@ const GaugeChart: React.FC<GaugeChartProps> = ({ value, max, title, subtitle }) 
 }
 
 const AnytimeFitnessDashboard: React.FC = () => {
-  const [dateRange, setDateRange] = React.useState("Last 30 Days")
-  const [isFilterOpen, setIsFilterOpen] = React.useState(false)
+  const [dateRange, setDateRange] = useState("Last 30 Days")
+  const [isFilterOpen, setIsFilterOpen] = useState(false)
+  
+  // State for API data
+  const [overviewData, setOverviewData] = useState<OverviewData | null>(null)
+  const [dailyConversations, setDailyConversations] = useState<DailyConversation[]>(dailyConversationsData)
+  const [messageVolume, setMessageVolume] = useState<MessageVolume[]>(messageVolumeData)
+  const [inputMethods, setInputMethods] = useState<InputMethod[]>(inputMethodData)
+  const [topQuestions, setTopQuestions] = useState<TopQuestion[]>(topQuestionsData)
+  const [responseTimes, setResponseTimes] = useState<ResponseTime[]>(responseTimeData)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // Fetch all dashboard data
+  const fetchAllData = async () => {
+    setLoading(true)
+    setError(null)
+    
+    try {
+      const [
+        overview,
+        conversations,
+        messages,
+        inputs,
+        questions,
+        performance
+      ] = await Promise.all([
+        fetchData('/analytics/overview'),
+        fetchData('/analytics/conversations/daily'),
+        fetchData('/analytics/messages/volume'),
+        fetchData('/analytics/input-methods'),
+        fetchData('/analytics/questions/top'),
+        fetchData('/analytics/performance/response-times')
+      ])
+      
+      if (overview) setOverviewData(overview)
+      if (conversations) setDailyConversations(conversations)
+      if (messages) setMessageVolume(messages)
+      if (inputs) setInputMethods(inputs)
+      if (questions) setTopQuestions(questions)
+      if (performance) setResponseTimes(performance)
+      
+    } catch (err) {
+      setError('Failed to fetch dashboard data')
+      console.error('Error fetching dashboard data:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+  
+  // Fetch data on component mount and set up auto-refresh
+  useEffect(() => {
+    fetchAllData()
+    
+    // Set up auto-refresh every 30 seconds
+    const interval = setInterval(fetchAllData, 30000)
+    
+    return () => clearInterval(interval)
+  }, [])
 
   const handleDateRangeChange = (range: string) => {
     setDateRange(range)
@@ -230,6 +341,19 @@ const AnytimeFitnessDashboard: React.FC = () => {
 
   const toggleFilter = () => {
     setIsFilterOpen(!isFilterOpen)
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-cyan-50 p-4 md:p-6 lg:p-8 flex items-center justify-center">
+        <div className="text-center">
+          <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Dashboard Error</h2>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <Button onClick={fetchAllData}>Retry</Button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -241,7 +365,9 @@ const AnytimeFitnessDashboard: React.FC = () => {
             <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-purple-600 to-cyan-600 bg-clip-text text-transparent">
               Anytime Fitness Chatbot Dashboard
             </h1>
-            <p className="text-muted-foreground">Data as of January 10, 2024 • Last updated 5 minutes ago</p>
+            <p className="text-muted-foreground">
+              Live Dashboard • {loading ? 'Updating...' : `Last updated ${new Date().toLocaleTimeString()}`}
+            </p>
           </div>
           <div className="flex items-center space-x-2">
             <Button variant="outline" size="sm" onClick={() => handleDateRangeChange("Last 7 Days")}>
@@ -259,24 +385,30 @@ const AnytimeFitnessDashboard: React.FC = () => {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <StatCard
             title="Total Conversations"
-            value="6,847"
-            change="+12.5%"
-            changeType="positive"
+            value={overviewData?.total_conversations?.toLocaleString() || loading ? "Loading..." : "0"}
+            change={`${(overviewData?.conversations_change || 0) > 0 ? '+' : ''}${overviewData?.conversations_change || 0}%`}
+            changeType={(overviewData?.conversations_change || 0) > 0 ? "positive" : (overviewData?.conversations_change || 0) < 0 ? "negative" : "neutral"}
             icon={MessageCircle}
           />
-          <StatCard title="Total Messages" value="24,392" change="+8.3%" changeType="positive" icon={MessageSquare} />
+          <StatCard 
+            title="Total Messages" 
+            value={overviewData?.total_messages?.toLocaleString() || loading ? "Loading..." : "0"} 
+            change={`${(overviewData?.messages_change || 0) > 0 ? '+' : ''}${overviewData?.messages_change || 0}%`} 
+            changeType={(overviewData?.messages_change || 0) > 0 ? "positive" : (overviewData?.messages_change || 0) < 0 ? "negative" : "neutral"} 
+            icon={MessageSquare} 
+          />
           <StatCard
             title="Avg Response Time"
-            value="1.8"
-            change="+0.2s"
-            changeType="negative"
+            value={overviewData?.avg_response_time?.toString() || loading ? "Loading..." : "0"}
+            change="Real-time data"
+            changeType="neutral"
             icon={Clock}
             suffix="s"
           />
           <StatCard
             title="API Error Rate"
-            value="0.5"
-            change="-0.1%"
+            value={overviewData?.error_rate?.toString() || loading ? "Loading..." : "0"}
+            change="Real-time data"
             changeType="positive"
             icon={AlertTriangle}
             suffix="%"
@@ -296,7 +428,7 @@ const AnytimeFitnessDashboard: React.FC = () => {
               <CardContent>
                 <ChartContainer config={chartConfig} className="h-[300px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={dailyConversationsData}>
+                    <AreaChart data={dailyConversations}>
                       <defs>
                         <linearGradient id="conversationsGradient" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
@@ -336,7 +468,7 @@ const AnytimeFitnessDashboard: React.FC = () => {
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
-                        data={inputMethodData}
+                        data={inputMethods}
                         cx="50%"
                         cy="50%"
                         innerRadius={60}
@@ -344,7 +476,7 @@ const AnytimeFitnessDashboard: React.FC = () => {
                         paddingAngle={5}
                         dataKey="value"
                       >
-                        {inputMethodData.map((entry, index) => (
+                        {inputMethods.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
                       </Pie>
@@ -372,7 +504,7 @@ const AnytimeFitnessDashboard: React.FC = () => {
                   </ResponsiveContainer>
                 </ChartContainer>
                 <div className="mt-4 space-y-2">
-                  {inputMethodData.map((item, index) => (
+                  {inputMethods.map((item, index) => (
                     <div key={index} className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         {item.name === "Text Input" ? <Type className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
@@ -395,7 +527,7 @@ const AnytimeFitnessDashboard: React.FC = () => {
             <CardContent>
               <ChartContainer config={chartConfig} className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={messageVolumeData}>
+                  <BarChart data={messageVolume}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="date" />
                     <YAxis />
@@ -423,7 +555,7 @@ const AnytimeFitnessDashboard: React.FC = () => {
               <CardContent>
                 <ChartContainer config={chartConfig} className="h-[200px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={responseTimeData}>
+                    <LineChart data={responseTimes}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="date" />
                       <YAxis />
@@ -516,7 +648,7 @@ const AnytimeFitnessDashboard: React.FC = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {topQuestionsData.map((item, index) => (
+                  {topQuestions.map((item, index) => (
                     <div key={index} className="flex items-center justify-between">
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{item.question}</p>
@@ -525,7 +657,7 @@ const AnytimeFitnessDashboard: React.FC = () => {
                         <div className="w-20 bg-gray-200 rounded-full h-2">
                           <div
                             className="bg-purple-600 h-2 rounded-full"
-                            style={{ width: `${(item.count / topQuestionsData[0].count) * 100}%` }}
+                            style={{ width: `${topQuestions.length > 0 ? (item.count / topQuestions[0].count) * 100 : 0}%` }}
                           ></div>
                         </div>
                         <Badge variant="secondary">{item.count}</Badge>
