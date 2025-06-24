@@ -142,9 +142,9 @@ const transcriptionTimeData = [
 ]
 
 const tokenUsageData = [
-  { model: "gpt-4o-mini", promptTokens: 45000, completionTokens: 23000 },
-  { model: "gpt-4o", promptTokens: 12000, completionTokens: 8000 },
-  { model: "whisper-1", promptTokens: 8000, completionTokens: 0 },
+  { model: "4o-mini-tts", promptTokens: 45000, completionTokens: 23000 },
+  { model: "4o-transcribe", promptTokens: 12000, completionTokens: 8000 },
+  { model: "4.1-mini", promptTokens: 8000, completionTokens: 0 },
 ]
 
 const topQuestionsData = [
@@ -620,7 +620,7 @@ const AnytimeFitnessDashboard: React.FC = () => {
               <CardDescription>Prompt and completion tokens across different AI models</CardDescription>
             </CardHeader>
             <CardContent>
-              <ChartContainer config={chartConfig} className="h-[300px]">
+              <ChartContainer config={chartConfig} className="h-[300px] w-fit">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={tokenUsageData} layout="horizontal">
                     <CartesianGrid strokeDasharray="3 3" />
