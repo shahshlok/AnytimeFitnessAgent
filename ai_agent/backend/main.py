@@ -97,6 +97,7 @@ class ChatRequest(BaseModel):
     history: List[Dict[str, str]]
     session_id: uuid.UUID | None = None
     user_agent: str | None = None
+    input_type: str = "text"
 
 class ChatResponse(BaseModel):
     reply: str
@@ -175,7 +176,7 @@ async def chat(request: ChatRequest, fastapi_request: Request, db: Session = Dep
         conversation = crud.get_or_create_conversation(db, session_id)
         
         # Log user message
-        user_metadata = {"input_type": "text"}
+        user_metadata = {"input_type": request.input_type}
         crud.create_message(
             db=db,
             conversation_id=conversation.id,

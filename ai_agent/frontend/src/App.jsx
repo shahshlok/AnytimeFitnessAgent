@@ -377,7 +377,8 @@ function App() {
           message: transcribed_text,
           history: apiHistory,
           session_id: sessionId || generateUUID(),
-          user_agent: navigator.userAgent
+          user_agent: navigator.userAgent,
+          input_type: "voice"
         }),
         signal: chatAbortControllerRef.current.signal
       })
@@ -489,7 +490,8 @@ function App() {
           message: originalInput,
           history: apiHistory,
           session_id: sessionId || generateUUID(),
-          user_agent: navigator.userAgent
+          user_agent: navigator.userAgent,
+          input_type: "text"
         }),
         signal: chatAbortControllerRef.current.signal
       })
