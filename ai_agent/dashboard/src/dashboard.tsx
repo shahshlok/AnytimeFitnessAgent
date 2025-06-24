@@ -385,21 +385,21 @@ const AnytimeFitnessDashboard: React.FC = () => {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <StatCard
             title="Total Conversations"
-            value={overviewData?.total_conversations?.toLocaleString() || loading ? "Loading..." : "0"}
+            value={loading ? "Loading..." : (overviewData?.total_conversations?.toLocaleString() || "0")}
             change={`${(overviewData?.conversations_change || 0) > 0 ? '+' : ''}${overviewData?.conversations_change || 0}%`}
             changeType={(overviewData?.conversations_change || 0) > 0 ? "positive" : (overviewData?.conversations_change || 0) < 0 ? "negative" : "neutral"}
             icon={MessageCircle}
           />
           <StatCard 
             title="Total Messages" 
-            value={overviewData?.total_messages?.toLocaleString() || loading ? "Loading..." : "0"} 
+            value={loading ? "Loading..." : (overviewData?.total_messages?.toLocaleString() || "0")} 
             change={`${(overviewData?.messages_change || 0) > 0 ? '+' : ''}${overviewData?.messages_change || 0}%`} 
             changeType={(overviewData?.messages_change || 0) > 0 ? "positive" : (overviewData?.messages_change || 0) < 0 ? "negative" : "neutral"} 
             icon={MessageSquare} 
           />
           <StatCard
             title="Avg Response Time"
-            value={overviewData?.avg_response_time?.toString() || loading ? "Loading..." : "0"}
+            value={loading ? "Loading..." : (overviewData?.avg_response_time?.toString() || "0")}
             change="Real-time data"
             changeType="neutral"
             icon={Clock}
@@ -407,7 +407,7 @@ const AnytimeFitnessDashboard: React.FC = () => {
           />
           <StatCard
             title="API Error Rate"
-            value={overviewData?.error_rate?.toString() || loading ? "Loading..." : "0"}
+            value={loading ? "Loading..." : (overviewData?.error_rate?.toString() || "0")}
             change="Real-time data"
             changeType="positive"
             icon={AlertTriangle}
