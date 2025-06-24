@@ -382,7 +382,7 @@ const AnytimeFitnessDashboard: React.FC = () => {
         </div>
 
         {/* Executive Summary - KPI Cards */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 ">
           <StatCard
             title="Total Conversations"
             value={loading ? "Loading..." : (overviewData?.total_conversations?.toLocaleString() || "0")}
@@ -404,14 +404,6 @@ const AnytimeFitnessDashboard: React.FC = () => {
             changeType="neutral"
             icon={Clock}
             suffix="s"
-          />
-          <StatCard
-            title="API Error Rate"
-            value={loading ? "Loading..." : (overviewData?.error_rate?.toString() || "0")}
-            change="Real-time data"
-            changeType="positive"
-            icon={AlertTriangle}
-            suffix="%"
           />
         </div>
 
