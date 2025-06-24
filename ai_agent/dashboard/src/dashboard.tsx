@@ -40,7 +40,7 @@ import {
 } from "recharts"
 
 // API Configuration
-const API_BASE_URL = "http://localhost:7479"
+const API_BASE_URL = "https://anytime-fitness-stg-api.dxfactor.com"
 
 // Types for API responses
 interface OverviewData {

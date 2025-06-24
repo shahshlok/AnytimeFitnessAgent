@@ -273,7 +273,7 @@ async def get_analytics_overview(db: Session = Depends(database.get_db)):
         
         # Average response time (from assistant messages)
         avg_response_time = db.query(
-            func.avg(func.cast(models.Message.extra_data['latency_ms'].astext, models.Float))
+            func.avg(func.cast(models.Message.extra_data['latency_ms'].astext, Float))
         ).filter(models.Message.role == 'assistant').scalar()
         
         # Conversations in last 30 days vs previous 30 days
@@ -449,7 +449,7 @@ async def get_response_times(db: Session = Depends(database.get_db)):
         results = db.query(
             extract('week', models.Message.created_at).label('week'),
             extract('year', models.Message.created_at).label('year'),
-            func.avg(func.cast(models.Message.extra_data['latency_ms'].astext, models.Float)).label('avg_time')
+            func.avg(func.cast(models.Message.extra_data['latency_ms'].astext, Float)).label('avg_time')
         ).filter(
             models.Message.role == 'assistant',
             models.Message.created_at >= four_weeks_ago,
