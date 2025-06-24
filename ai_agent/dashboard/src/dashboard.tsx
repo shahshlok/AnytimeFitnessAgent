@@ -79,6 +79,11 @@ interface ResponseTime {
   responseTime: number
 }
 
+interface TranscriptionTime {
+  date: string
+  transcriptionTime: number
+}
+
 // API utility functions
 const fetchData = async (endpoint: string) => {
   try {
@@ -285,6 +290,7 @@ const AnytimeFitnessDashboard: React.FC = () => {
   const [inputMethods, setInputMethods] = useState<InputMethod[]>(inputMethodData)
   const [topQuestions, setTopQuestions] = useState<TopQuestion[]>(topQuestionsData)
   const [responseTimes, setResponseTimes] = useState<ResponseTime[]>(responseTimeData)
+  const [transcriptionTimes, setTranscriptionTimes] = useState<TranscriptionTime[]>(transcriptionTimeData)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -300,14 +306,16 @@ const AnytimeFitnessDashboard: React.FC = () => {
         messages,
         inputs,
         questions,
-        performance
+        performance,
+        transcription
       ] = await Promise.all([
         fetchData('/analytics/overview'),
         fetchData('/analytics/conversations/daily'),
         fetchData('/analytics/messages/volume'),
         fetchData('/analytics/input-methods'),
         fetchData('/analytics/questions/top'),
-        fetchData('/analytics/performance/response-times')
+        fetchData('/analytics/performance/response-times'),
+        fetchData('/analytics/transcription-times')
       ])
       
       if (overview) setOverviewData(overview)
@@ -316,6 +324,7 @@ const AnytimeFitnessDashboard: React.FC = () => {
       if (inputs) setInputMethods(inputs)
       if (questions) setTopQuestions(questions)
       if (performance) setResponseTimes(performance)
+      if (transcription) setTranscriptionTimes(transcription)
       
     } catch (err) {
       setError('Failed to fetch dashboard data')
@@ -574,7 +583,7 @@ const AnytimeFitnessDashboard: React.FC = () => {
               <CardContent>
                 <ChartContainer config={chartConfig} className="h-[200px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={transcriptionTimeData}>
+                    <LineChart data={transcriptionTimes}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="date" />
                       <YAxis />

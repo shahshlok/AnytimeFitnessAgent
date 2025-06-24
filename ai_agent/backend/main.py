@@ -98,6 +98,7 @@ class ChatRequest(BaseModel):
     history: List[Dict[str, str]]
     session_id: uuid.UUID | None = None
     input_type: str = "text"
+    transcription_time_ms: int | None = None
 
 class ChatResponse(BaseModel):
     reply: str
@@ -173,6 +174,9 @@ async def chat(request: ChatRequest, db: Session = Depends(database.get_db)):
         
         # Log user message
         user_metadata = {"input_type": request.input_type}
+        if request.transcription_time_ms is not None:
+            user_metadata["transcription_time_ms"] = request.transcription_time_ms
+        
         crud.create_message(
             db=db,
             conversation_id=conversation.id,
@@ -206,14 +210,20 @@ async def chat(request: ChatRequest, db: Session = Depends(database.get_db)):
 async def transcribe_audio(file: UploadFile = File(...)):
     logger.info(f"Transcription request received for file: {file.filename}")
     try:
-        # Transcribe the audio file using GPT-4o-transcribe
+        # Transcribe the audio file using GPT-4o-transcribe with timing
+        start_time = time.time()
         transcript = client.audio.transcriptions.create(
             model="gpt-4o-transcribe",
             file=(file.filename, file.file)
         )
+        end_time = time.time()
+        transcription_time_ms = int((end_time - start_time) * 1000)
         
-        logger.info(f"Transcription completed: {transcript.text[:50]}...")
-        return {"transcribed_text": transcript.text}
+        logger.info(f"Transcription completed in {transcription_time_ms}ms: {transcript.text[:50]}...")
+        return {
+            "transcribed_text": transcript.text,
+            "transcription_time_ms": transcription_time_ms
+        }
         
     except Exception as e:
         logger.error(f"Error in transcribe endpoint: {str(e)}", exc_info=True)
@@ -473,3 +483,38 @@ async def get_response_times(db: Session = Depends(database.get_db)):
     except Exception as e:
         logger.error(f"Error in response times: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Error fetching response times")
+
+@app.get("/analytics/transcription-times")
+async def get_transcription_times(db: Session = Depends(database.get_db)):
+    """Get transcription time trends by week for voice messages"""
+    try:
+        four_weeks_ago = datetime.now() - timedelta(weeks=4)
+        
+        results = db.query(
+            extract('week', models.Message.created_at).label('week'),
+            extract('year', models.Message.created_at).label('year'),
+            func.avg(func.cast(models.Message.extra_data['transcription_time_ms'].astext, Float)).label('avg_time')
+        ).filter(
+            models.Message.role == 'user',
+            models.Message.extra_data['input_type'].astext == 'voice',
+            models.Message.created_at >= four_weeks_ago,
+            models.Message.extra_data['transcription_time_ms'].astext != None
+        ).group_by(
+            extract('week', models.Message.created_at),
+            extract('year', models.Message.created_at)
+        ).order_by(
+            extract('year', models.Message.created_at),
+            extract('week', models.Message.created_at)
+        ).all()
+        
+        return [
+            {
+                "date": f"Week {int(result.week)}",
+                "transcriptionTime": round(result.avg_time / 1000, 2) if result.avg_time else 0  # Convert to seconds
+            }
+            for result in results
+        ]
+        
+    except Exception as e:
+        logger.error(f"Error in transcription times: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Error fetching transcription times")
