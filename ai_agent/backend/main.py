@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File, Depends, Request
+from fastapi import FastAPI, HTTPException, UploadFile, File, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -96,7 +96,6 @@ class ChatRequest(BaseModel):
     message: str
     history: List[Dict[str, str]]
     session_id: uuid.UUID | None = None
-    user_agent: str | None = None
     input_type: str = "text"
 
 class ChatResponse(BaseModel):
@@ -163,14 +162,11 @@ async def get_ai_response(message: str, history: List[Dict[str, str]]) -> Tuple[
         )
 
 @app.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest, fastapi_request: Request, db: Session = Depends(database.get_db)):
+async def chat(request: ChatRequest, db: Session = Depends(database.get_db)):
     logger.info(f"Chat request received: {request.message[:100]}...")
     try:
         # Generate session_id if not provided
         session_id = request.session_id or uuid.uuid4()
-        
-        # Get user agent from request headers if not provided in payload
-        user_agent = request.user_agent or fastapi_request.headers.get("user-agent")
         
         # Get or create conversation
         conversation = crud.get_or_create_conversation(db, session_id)

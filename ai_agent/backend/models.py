@@ -17,7 +17,6 @@ class Conversation(Base):
     session_id = Column(UUID(as_uuid=True), unique=True, nullable=False, default=uuid.uuid4)
     started_at = Column(DateTime(timezone=True), nullable=False, default=func.now())
     ended_at = Column(DateTime(timezone=True), nullable=True)
-    user_agent = Column(Text, nullable=True)
     
     # One-to-many relationship with messages
     messages = relationship("Message", back_populates="conversation")

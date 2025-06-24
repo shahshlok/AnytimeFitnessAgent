@@ -46,17 +46,17 @@ function App() {
 
   // Session management - run once on component mount
   useEffect(() => {
-    // Check if sessionId exists in localStorage
-    const storedSessionId = localStorage.getItem('anytimeFitnessSessionId')
+    // Check if sessionId exists in sessionStorage (privacy-friendly)
+    const storedSessionId = sessionStorage.getItem('anytimeFitnessSessionId')
     
     if (storedSessionId) {
-      console.log('[SESSION] Using existing session ID from localStorage:', storedSessionId)
+      console.log('[SESSION] Using existing session ID from sessionStorage:', storedSessionId)
       setSessionId(storedSessionId)
     } else {
       // Generate new UUID and store it
       const newSessionId = generateUUID()
       console.log('[SESSION] Generated new session ID:', newSessionId)
-      localStorage.setItem('anytimeFitnessSessionId', newSessionId)
+      sessionStorage.setItem('anytimeFitnessSessionId', newSessionId)
       setSessionId(newSessionId)
     }
   }, []) // Empty dependency array - runs only once on mount
@@ -377,7 +377,6 @@ function App() {
           message: transcribed_text,
           history: apiHistory,
           session_id: sessionId || generateUUID(),
-          user_agent: navigator.userAgent,
           input_type: "voice"
         }),
         signal: chatAbortControllerRef.current.signal
@@ -436,6 +435,12 @@ function App() {
       handleStopRecording()
     }
     
+    // Generate new session ID for fresh conversation
+    const newSessionId = generateUUID()
+    console.log('[RESET] Generated new session ID:', newSessionId)
+    sessionStorage.setItem('anytimeFitnessSessionId', newSessionId)
+    setSessionId(newSessionId)
+    
     // Reset all states to initial values
     setMessages([])
     setInput('')
@@ -490,7 +495,6 @@ function App() {
           message: originalInput,
           history: apiHistory,
           session_id: sessionId || generateUUID(),
-          user_agent: navigator.userAgent,
           input_type: "text"
         }),
         signal: chatAbortControllerRef.current.signal
