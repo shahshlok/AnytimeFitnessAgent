@@ -336,8 +336,9 @@ function App() {
         throw new Error(`Failed to transcribe audio: ${transcribeResponse.status}`)
       }
 
-      const { transcribed_text } = await transcribeResponse.json()
+      const { transcribed_text, transcription_time_ms } = await transcribeResponse.json()
       console.log(`[TRANSCRIBE] Result: "${transcribed_text}"`)
+      console.log(`[TRANSCRIBE] Backend timing: ${transcription_time_ms}ms`)
       
       if (!transcribed_text || transcribed_text.trim() === '') {
         console.warn('[TRANSCRIBE] No speech detected in audio')
@@ -377,7 +378,8 @@ function App() {
           message: transcribed_text,
           history: apiHistory,
           session_id: sessionId || generateUUID(),
-          input_type: "voice"
+          input_type: "voice",
+          transcription_time_ms: transcription_time_ms
         }),
         signal: chatAbortControllerRef.current.signal
       })
