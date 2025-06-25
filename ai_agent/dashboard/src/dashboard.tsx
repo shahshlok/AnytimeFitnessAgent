@@ -620,12 +620,12 @@ const AnytimeFitnessDashboard: React.FC = () => {
               <CardDescription>Prompt and completion tokens across different AI models</CardDescription>
             </CardHeader>
             <CardContent>
-              <ChartContainer config={chartConfig} className="h-[300px] w-fit">
+              <ChartContainer config={chartConfig} className="h-[300px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={tokenUsageData} layout="horizontal">
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis type="number" />
-                    <YAxis dataKey="model" type="category" width={100} />
+                    <YAxis dataKey="model" type="category" width={120} />
                     <ChartTooltip content={<ChartTooltipContent />} />
                     <ChartLegend content={<ChartLegendContent />} />
                     <Bar dataKey="promptTokens" stackId="a" fill="#8b5cf6" />
