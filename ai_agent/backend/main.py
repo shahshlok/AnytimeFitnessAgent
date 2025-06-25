@@ -129,10 +129,8 @@ async def get_ai_response(message: str, history: List[Dict[str, str]]) -> Tuple[
             input=conversation_messages,
             tools=[{
                 "type": "file_search",
-                "file_search": {
-                    "vector_store_ids": [vector_store_id]
-                }
-            }],
+                "vector_store_ids": [vector_store_id],
+            }]
             # max_output_tokens=100
         )
         end_time = time.time()
