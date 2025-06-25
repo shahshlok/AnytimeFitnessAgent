@@ -84,6 +84,13 @@ interface TranscriptionTime {
   transcriptionTime: number
 }
 
+interface TokenUsage {
+  date: string
+  "4o-mini-tts": number
+  "4o-transcribe": number
+  "4.1-mini": number
+}
+
 // API utility functions
 const fetchData = async (endpoint: string) => {
   try {
@@ -141,15 +148,6 @@ const transcriptionTimeData = [
   { date: "Week 4", transcriptionTime: 1.1 },
 ]
 
-const tokenUsageData = [
-  { date: "Dec 19", "4o-mini-tts": 68000, "4o-transcribe": 20000, "4.1-mini": 8000 },
-  { date: "Dec 20", "4o-mini-tts": 72000, "4o-transcribe": 18000, "4.1-mini": 12000 },
-  { date: "Dec 21", "4o-mini-tts": 65000, "4o-transcribe": 22000, "4.1-mini": 15000 },
-  { date: "Dec 22", "4o-mini-tts": 78000, "4o-transcribe": 25000, "4.1-mini": 10000 },
-  { date: "Dec 23", "4o-mini-tts": 82000, "4o-transcribe": 19000, "4.1-mini": 14000 },
-  { date: "Dec 24", "4o-mini-tts": 58000, "4o-transcribe": 16000, "4.1-mini": 9000 },
-  { date: "Dec 25", "4o-mini-tts": 45000, "4o-transcribe": 12000, "4.1-mini": 6000 },
-]
 
 const topQuestionsData = [
   { question: "What are your gym hours?", count: 234 },
@@ -299,6 +297,7 @@ const AnytimeFitnessDashboard: React.FC = () => {
   const [topQuestions, setTopQuestions] = useState<TopQuestion[]>(topQuestionsData)
   const [responseTimes, setResponseTimes] = useState<ResponseTime[]>(responseTimeData)
   const [transcriptionTimes, setTranscriptionTimes] = useState<TranscriptionTime[]>(transcriptionTimeData)
+  const [tokenUsage, setTokenUsage] = useState<TokenUsage[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -315,7 +314,8 @@ const AnytimeFitnessDashboard: React.FC = () => {
         inputs,
         questions,
         performance,
-        transcription
+        transcription,
+        tokens
       ] = await Promise.all([
         fetchData('/analytics/overview'),
         fetchData('/analytics/conversations/daily'),
@@ -323,7 +323,8 @@ const AnytimeFitnessDashboard: React.FC = () => {
         fetchData('/analytics/input-methods'),
         fetchData('/analytics/questions/top'),
         fetchData('/analytics/performance/response-times'),
-        fetchData('/analytics/transcription-times')
+        fetchData('/analytics/transcription-times'),
+        fetchData('/analytics/token-usage')
       ])
       
       if (overview) setOverviewData(overview)
@@ -333,6 +334,7 @@ const AnytimeFitnessDashboard: React.FC = () => {
       if (questions) setTopQuestions(questions)
       if (performance) setResponseTimes(performance)
       if (transcription) setTranscriptionTimes(transcription)
+      if (tokens) setTokenUsage(tokens)
       
     } catch (err) {
       setError('Failed to fetch dashboard data')
@@ -630,7 +632,7 @@ const AnytimeFitnessDashboard: React.FC = () => {
             <CardContent>
               <ChartContainer config={chartConfig} className="h-[300px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={tokenUsageData}>
+                  <LineChart data={tokenUsage}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="date" />
                     <YAxis />
