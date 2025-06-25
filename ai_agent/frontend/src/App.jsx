@@ -81,7 +81,7 @@ function App() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ text, session_id: sessionId }),
         signal: controller.signal
       })
       
