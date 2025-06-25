@@ -106,6 +106,7 @@ class ChatResponse(BaseModel):
 
 class SpeakRequest(BaseModel):
     text: str
+    session_id: uuid.UUID | None = None
 
 async def get_ai_response(message: str, history: List[Dict[str, str]]) -> Tuple[str, Dict[str, Any]]:
     try:
@@ -127,9 +128,11 @@ async def get_ai_response(message: str, history: List[Dict[str, str]]) -> Tuple[
             model=model_name,
             input=conversation_messages,
             tools=[{
-                    "type": "file_search",
+                "type": "file_search",
+                "file_search": {
                     "vector_store_ids": [vector_store_id]
-                }],
+                }
+            }],
             # max_output_tokens=100
         )
         end_time = time.time()
@@ -138,19 +141,26 @@ async def get_ai_response(message: str, history: List[Dict[str, str]]) -> Tuple[
         # Extract the assistant's reply from response.output
         response_text = None
         for item in response.output:
-            if hasattr(item, 'role') and item.role == 'assistant':
-                response_text = item.content[0].text
-                break
+            if hasattr(item, 'type') and item.type == 'message':
+                if hasattr(item, 'role') and item.role == 'assistant':
+                    if hasattr(item, 'content') and len(item.content) > 0:
+                        response_text = item.content[0].text
+                        break
 
         if not response_text:
             raise HTTPException(status_code=500, detail="Failed to get response from AI model")
         
         logger.info(f"AI response generated: {response_text[:100]}...")
         
-        # Prepare metadata
+        # Extract token usage from response
+        usage = response.usage
+        total_tokens = usage.total_tokens if usage else 0
+        
+        # Prepare metadata with token information
         metadata = {
             "model": model_name,
-            "latency_ms": latency_ms
+            "latency_ms": latency_ms,
+            "total_tokens": total_tokens
         }
 
         return response_text, metadata
@@ -179,7 +189,7 @@ async def chat(request: ChatRequest, db: Session = Depends(database.get_db)):
         
         crud.create_message(
             db=db,
-            conversation_id=conversation.id,
+            conversation_id=int(conversation.id),
             role="user",
             content=request.message,
             extra_data_payload=user_metadata
@@ -191,7 +201,7 @@ async def chat(request: ChatRequest, db: Session = Depends(database.get_db)):
         # Log assistant message
         crud.create_message(
             db=db,
-            conversation_id=conversation.id,
+            conversation_id=int(conversation.id),
             role="assistant",
             content=reply,
             extra_data_payload=ai_metadata
@@ -206,20 +216,55 @@ async def chat(request: ChatRequest, db: Session = Depends(database.get_db)):
             detail="An error occurred while processing your request. Please try again later."
         )
 
+class TranscribeRequest(BaseModel):
+    session_id: uuid.UUID | None = None
+
 @app.post("/transcribe")
-async def transcribe_audio(file: UploadFile = File(...)):
+async def transcribe_audio(
+    file: UploadFile = File(...),
+    session_id: str = "",
+    db: Session = Depends(database.get_db)
+):
     logger.info(f"Transcription request received for file: {file.filename}")
     try:
         # Transcribe the audio file using GPT-4o-transcribe with timing
         start_time = time.time()
+        model_name = "gpt-4o-transcribe"
         transcript = client.audio.transcriptions.create(
-            model="gpt-4o-transcribe",
+            model=model_name,
             file=(file.filename, file.file)
         )
         end_time = time.time()
         transcription_time_ms = int((end_time - start_time) * 1000)
         
         logger.info(f"Transcription completed in {transcription_time_ms}ms: {transcript.text[:50]}...")
+        
+        # Log transcription to database if session_id provided
+        if session_id:
+            try:
+                session_uuid = uuid.UUID(session_id)
+                conversation = crud.get_or_create_conversation(db, session_uuid)
+                
+                # Create user message for transcription request
+                transcription_metadata = {
+                    "input_type": "voice",
+                    "model": model_name,
+                    "transcription_time_ms": transcription_time_ms,
+                    "audio_filename": file.filename,
+                    "total_tokens": getattr(transcript, 'usage', {}).get('total_tokens', 0) if hasattr(transcript, 'usage') else 0
+                }
+                
+                crud.create_message(
+                    db=db,
+                    conversation_id=int(conversation.id),
+                    role="user",
+                    content=transcript.text,
+                    extra_data_payload=transcription_metadata
+                )
+                
+            except (ValueError, Exception) as db_error:
+                logger.warning(f"Failed to log transcription to database: {str(db_error)}")
+        
         return {
             "transcribed_text": transcript.text,
             "transcription_time_ms": transcription_time_ms
@@ -243,14 +288,48 @@ async def health_check():
     }
 
 @app.post("/speak")
-async def text_to_speech(request: SpeakRequest):
+async def text_to_speech(request: SpeakRequest, db: Session = Depends(database.get_db)):
     logger.info(f"TTS request received: {request.text[:50]}...")
     try:
+        start_time = time.time()
+        model_name = "gpt-4o-mini-tts"
         response = client.audio.speech.create(
-            model="gpt-4o-mini-tts",
+            model=model_name,
             voice="alloy",
             input=request.text
         )
+        end_time = time.time()
+        latency_ms = int((end_time - start_time) * 1000)
+        
+        # Estimate token usage for TTS (OpenAI doesn't provide usage in response)
+        # Approximate: 1 token per 4 characters for TTS
+        estimated_tokens = len(request.text) // 4
+        
+        # Log TTS request to database if session_id provided
+        if request.session_id:
+            try:
+                conversation = crud.get_or_create_conversation(db, request.session_id)
+                
+                # Create assistant message for TTS request
+                tts_metadata = {
+                    "model": model_name,
+                    "latency_ms": latency_ms,
+                    "voice": "alloy",
+                    "total_tokens": estimated_tokens,
+                    "estimated_tokens": True,  # Flag to indicate estimation
+                    "content_type": "tts_audio"
+                }
+                
+                crud.create_message(
+                    db=db,
+                    conversation_id=int(conversation.id),
+                    role="assistant",
+                    content=request.text,  # Store the text that was converted to speech
+                    extra_data_payload=tts_metadata
+                )
+                
+            except Exception as db_error:
+                logger.warning(f"Failed to log TTS request to database: {str(db_error)}")
         
         logger.info("TTS response generated successfully")
         return StreamingResponse(
@@ -408,13 +487,15 @@ async def get_input_methods(db: Session = Depends(database.get_db)):
             models.Message.extra_data['input_type'].astext
         ).all()
         
-        total_messages = sum(result.count for result in results)
+        total_messages = 0
+        for result in results:
+            total_messages += int(result[1])  # result[1] is the count column
         
         return [
             {
-                "name": "Text Input" if result.input_type == "text" else "Voice Input",
-                "value": round((result.count / total_messages) * 100, 1) if total_messages > 0 else 0,
-                "color": "#8b5cf6" if result.input_type == "text" else "#06b6d4"
+                "name": "Text Input" if result[0] == "text" else "Voice Input",  # result[0] is input_type
+                "value": round((int(result[1]) / total_messages) * 100, 1) if total_messages > 0 else 0,
+                "color": "#8b5cf6" if result[0] == "text" else "#06b6d4"
             }
             for result in results
         ]
@@ -518,3 +599,49 @@ async def get_transcription_times(db: Session = Depends(database.get_db)):
     except Exception as e:
         logger.error(f"Error in transcription times: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Error fetching transcription times")
+
+@app.get("/analytics/token-usage")
+async def get_token_usage(db: Session = Depends(database.get_db)):
+    """Get token usage trends by day for each AI model"""
+    try:
+        seven_days_ago = datetime.now() - timedelta(days=7)
+        
+        results = db.query(
+            func.date(models.Message.created_at).label('date'),
+            func.coalesce(models.Message.extra_data['model'].astext, 'unknown').label('model'),
+            func.sum(func.cast(func.coalesce(models.Message.extra_data['total_tokens'].astext, '0'), Float)).label('total_tokens')
+        ).filter(
+            models.Message.created_at >= seven_days_ago,
+            models.Message.extra_data['total_tokens'].astext != None
+        ).group_by(
+            func.date(models.Message.created_at),
+            models.Message.extra_data['model'].astext
+        ).order_by(
+            func.date(models.Message.created_at)
+        ).all()
+        
+        # Process results into the format expected by the dashboard
+        data_dict = {}
+        for result in results:
+            date_str = result.date.strftime("%b %d")
+            if date_str not in data_dict:
+                data_dict[date_str] = {
+                    "date": date_str,
+                    "4o-mini-tts": 0,
+                    "4o-transcribe": 0,
+                    "4.1-mini": 0
+                }
+            
+            # Map model names to chart keys
+            if result.model == "gpt-4o-mini-tts":
+                data_dict[date_str]["4o-mini-tts"] = int(result.total_tokens)
+            elif result.model == "gpt-4o-transcribe":
+                data_dict[date_str]["4o-transcribe"] = int(result.total_tokens)
+            elif result.model == "gpt-4.1-mini":
+                data_dict[date_str]["4.1-mini"] = int(result.total_tokens)
+        
+        return list(data_dict.values())
+        
+    except Exception as e:
+        logger.error(f"Error in token usage: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Error fetching token usage")
