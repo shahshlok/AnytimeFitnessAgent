@@ -408,19 +408,20 @@ async def get_analytics_overview(db: Session = Depends(database.get_db)):
 
 @app.get("/analytics/conversations/daily")
 async def get_daily_conversations(db: Session = Depends(database.get_db)):
-    """Get daily conversation trends for the last 30 days"""
+    """Get daily active conversation trends for the last 30 days"""
     try:
         thirty_days_ago = datetime.now() - timedelta(days=30)
         
+        # Count distinct conversations that had messages on each day
         results = db.query(
-            func.date(models.Conversation.started_at).label('date'),
-            func.count(models.Conversation.id).label('conversations')
+            func.date(models.Message.created_at).label('date'),
+            func.count(func.distinct(models.Message.conversation_id)).label('conversations')
         ).filter(
-            models.Conversation.started_at >= thirty_days_ago
+            models.Message.created_at >= thirty_days_ago
         ).group_by(
-            func.date(models.Conversation.started_at)
+            func.date(models.Message.created_at)
         ).order_by(
-            func.date(models.Conversation.started_at)
+            func.date(models.Message.created_at)
         ).all()
         
         return [
