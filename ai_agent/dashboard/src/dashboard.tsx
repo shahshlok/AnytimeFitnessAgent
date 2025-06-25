@@ -142,9 +142,13 @@ const transcriptionTimeData = [
 ]
 
 const tokenUsageData = [
-  { model: "4o-mini-tts", promptTokens: 45000, completionTokens: 23000 },
-  { model: "4o-transcribe", promptTokens: 12000, completionTokens: 8000 },
-  { model: "4.1-mini", promptTokens: 8000, completionTokens: 0 },
+  { date: "Dec 19", "4o-mini-tts": 68000, "4o-transcribe": 20000, "4.1-mini": 8000 },
+  { date: "Dec 20", "4o-mini-tts": 72000, "4o-transcribe": 18000, "4.1-mini": 12000 },
+  { date: "Dec 21", "4o-mini-tts": 65000, "4o-transcribe": 22000, "4.1-mini": 15000 },
+  { date: "Dec 22", "4o-mini-tts": 78000, "4o-transcribe": 25000, "4.1-mini": 10000 },
+  { date: "Dec 23", "4o-mini-tts": 82000, "4o-transcribe": 19000, "4.1-mini": 14000 },
+  { date: "Dec 24", "4o-mini-tts": 58000, "4o-transcribe": 16000, "4.1-mini": 9000 },
+  { date: "Dec 25", "4o-mini-tts": 45000, "4o-transcribe": 12000, "4.1-mini": 6000 },
 ]
 
 const topQuestionsData = [
@@ -181,13 +185,17 @@ const chartConfig = {
     label: "Transcription Time (s)",
     color: "#06b6d4",
   },
-  promptTokens: {
-    label: "Prompt Tokens",
+  "4o-mini-tts": {
+    label: "4o-mini-tts",
     color: "#8b5cf6",
   },
-  completionTokens: {
-    label: "Completion Tokens",
+  "4o-transcribe": {
+    label: "4o-transcribe",
     color: "#06b6d4",
+  },
+  "4.1-mini": {
+    label: "4.1-mini",
+    color: "#10b981",
   },
 }
 
@@ -617,20 +625,39 @@ const AnytimeFitnessDashboard: React.FC = () => {
           <Card>
             <CardHeader>
               <CardTitle>OpenAI Token Usage by Model</CardTitle>
-              <CardDescription>Prompt and completion tokens across different AI models</CardDescription>
+              <CardDescription>Total token usage trends over time for each AI model</CardDescription>
             </CardHeader>
             <CardContent>
               <ChartContainer config={chartConfig} className="h-[300px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={tokenUsageData} layout="horizontal">
+                  <LineChart data={tokenUsageData}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis type="number" />
-                    <YAxis dataKey="model" type="category" width={120} />
+                    <XAxis dataKey="date" />
+                    <YAxis />
                     <ChartTooltip content={<ChartTooltipContent />} />
                     <ChartLegend content={<ChartLegendContent />} />
-                    <Bar dataKey="promptTokens" stackId="a" fill="#8b5cf6" />
-                    <Bar dataKey="completionTokens" stackId="a" fill="#06b6d4" />
-                  </BarChart>
+                    <Line 
+                      type="monotone" 
+                      dataKey="4o-mini-tts" 
+                      stroke="#8b5cf6" 
+                      strokeWidth={2}
+                      dot={{ fill: "#8b5cf6" }}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="4o-transcribe" 
+                      stroke="#06b6d4" 
+                      strokeWidth={2}
+                      dot={{ fill: "#06b6d4" }}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="4.1-mini" 
+                      stroke="#10b981" 
+                      strokeWidth={2}
+                      dot={{ fill: "#10b981" }}
+                    />
+                  </LineChart>
                 </ResponsiveContainer>
               </ChartContainer>
             </CardContent>
