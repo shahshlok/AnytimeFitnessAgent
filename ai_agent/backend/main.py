@@ -632,7 +632,7 @@ async def get_token_usage(db: Session = Depends(database.get_db)):
                     "date": date_str,
                     "4o-mini-tts": 0,
                     "4o-transcribe": 0,
-                    "4.1-mini": 0
+                    "4.1": 0
                 }
             
             # Map model names to chart keys
@@ -640,8 +640,8 @@ async def get_token_usage(db: Session = Depends(database.get_db)):
                 data_dict[date_str]["4o-mini-tts"] = int(result.total_tokens)
             elif result.model == "gpt-4o-transcribe":
                 data_dict[date_str]["4o-transcribe"] = int(result.total_tokens)
-            elif result.model == "gpt-4.1-mini":
-                data_dict[date_str]["4.1-mini"] = int(result.total_tokens)
+            elif result.model == "gpt-4.1":
+                data_dict[date_str]["4.1"] = int(result.total_tokens)
         
         return list(data_dict.values())
         
