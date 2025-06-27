@@ -13,7 +13,8 @@ const generateUUID = () => {
 }
 
 function App() {
-  const API_BASE_URL = 'https://anytime-fitness-stg-api.dxfactor.com'
+  // const API_BASE_URL = 'https://anytime-fitness-stg-api.dxfactor.com'
+  const API_BASE_URL= 'http://localhost:7479'
   const [messages, setMessages] = useState([])
   const [sessionId, setSessionId] = useState(null)
   
