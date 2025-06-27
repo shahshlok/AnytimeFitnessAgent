@@ -10,9 +10,9 @@ load_dotenv()
 
 # --- Your Test Data ---
 # Feel free to change these values for your test.
-test_name = "Some Test Name"
-test_email = "test_abc.com"
-test_summary = "This is a test lead generated directly from the test_hubspot.py script. The user expressed interest in a yearly membership."
+test_name = "Test once more"
+test_email = "a@b.com"
+test_summary = "This is a test lead generated directly from the test_hubspot.py script again"
 
 # --- Calling Your Function ---
 print(f"Attempting to create a HubSpot lead for: {test_email}")

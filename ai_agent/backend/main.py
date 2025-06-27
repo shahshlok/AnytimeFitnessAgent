@@ -19,6 +19,10 @@ import database
 import models
 import crud
 
+# For the HubSpot integration
+import json
+from hubspot_integration import create_lead
+
 # Load environment variables
 load_dotenv()
 
@@ -112,6 +116,41 @@ class SpeakRequest(BaseModel):
     text: str
     session_id: uuid.UUID | None = None
 
+# (Paste this code into main.py after the imports)
+
+tools = [
+    {
+        "type": "file_search"
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "create_lead",
+            "description": "Use this function to create a new lead in the HubSpot CRM. This should only be used after a user expresses clear interest in a membership or trial AND you have successfully collected their full name and email address.",
+            "strict": True,
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "The full name of the lead to be created."
+                    },
+                    "email": {
+                        "type": "string",
+                        "description": "The email address of the lead to be created."
+                    },
+                    "summary": {
+                        "type": "string",
+                        "description": "A concise, one or two-sentence summary of the conversation that identified the user as a lead."
+                    }
+                },
+                "required": ["name", "email", "summary"],
+                "additionalProperties": False
+            }
+        }
+    }
+]
+
 async def get_ai_response(message: str, history: List[Dict[str, str]]) -> Tuple[str, Dict[str, Any]]:
     try:
         # Get vector store ID from environment
@@ -131,12 +170,15 @@ async def get_ai_response(message: str, history: List[Dict[str, str]]) -> Tuple[
         response = client.responses.create(
             model=model_name,
             input=conversation_messages,
-            tools=[{
-                "type": "file_search",
-                "vector_store_ids": [vector_store_id],
-            }]
-            # max_output_tokens=100
-        )
+            tools=tools,
+            tool_choice="auto",
+            tool_resources={
+             "file_search": {
+                "vector_store_ids": [os.getenv("VECTOR_STORE_ID")]
+                }
+            },
+        ) # type: ignore
+
         end_time = time.time()
         latency_ms = int((end_time - start_time) * 1000)
 
