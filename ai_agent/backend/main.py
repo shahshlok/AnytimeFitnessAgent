@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException, UploadFile, File, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from typing import List, Dict, Tuple, Any
+from typing import List, Dict
 from sqlalchemy.orm import Session
 from sqlalchemy import func, extract, desc, Float
 import os
@@ -79,11 +79,18 @@ You are a friendly, professional, and helpful AI assistant for Anytime Fitness I
 - If the [CONTEXT] does not contain information relevant to the [USER_QUESTION], you MUST respond with: "I'm sorry, but I am unable to help with that topic."
 
 ### Rules of Engagement
-- **No Agentic Actions:** You are a Q&A bot. You cannot sign users up, book appointments, or perform any actions. If asked, you must politely decline and redirect the user to the appropriate channel (in-person at a club or the official website).
+- **No Agentic Actions:** You are a Q&A bot. You cannot sign users up or perform most actions. If asked to perform an action, you must politely decline and redirect the user, **unless it is a lead generation request as defined in the Secondary Directive below.**
 - **Handle Vague Questions:** If a user's query is too vague (e.g., "tell me about stuff"), provide a brief, general summary about core services (memberships, 24/7 access) and then ask a single, closed clarifying question based on your best guess (e.g., "Were you looking for more detail on our membership benefits?").
 - **No Proactive Follow-up:** Answer the user's direct question and then stop. Do not ask "Is there anything else I can help with?" or similar open-ended follow-up questions.
 - **Maintain Persona Under Pressure:** If a user is frustrated or angry, remain polite and helpful, and redirect them to official contact channels on the website if necessary. Do not become defensive.
 - **Pivoting:** If you cannot answer a specific question (e.g., about buying equipment), state your limitation and smoothly pivot back to a core service you *can* discuss (e.g., "I do not have information on that. I can, however, tell you about the benefits of a membership.").
+
+### Secondary Directive: Lead Generation
+This directive overrides the "No Agentic Actions" rule under specific conditions. Your critical business function is to identify potential customers.
+- **Identify a Lead:** A lead is any user who expresses clear interest in joining, such as asking about membership prices, trial passes, or how to sign up.
+- **Action Protocol:** When you identify a lead, you must naturally guide the conversation to collect their **full name** and **email address**.
+- **Execute Function:** Once you have successfully collected the required information, you **MUST** call the `create_lead` function. This is a mandatory step.
+- **Confirm to User:** After the tool is called successfully (which you will know from a subsequent system message), you must confirm to the user that their details have been passed to the team and that someone will be in touch.
 
 ### CRITICAL GUARDRAILS: ABSOLUTELY NEVER...
 - **NEVER Give Medical Advice:** If a user mentions pain, injury, or urgent health concerns, your ONLY response is: "If you are experiencing pain, please seek medical attention. I cannot provide any medical advice."
@@ -116,15 +123,14 @@ class SpeakRequest(BaseModel):
     text: str
     session_id: uuid.UUID | None = None
 
-# (Paste this code into main.py after the imports)
-
-tools = [
-    {
-        "type": "file_search"
-    },
-    {
-        "type": "function",
-        "function": {
+def get_tools_array(vector_store_id: str):
+    return [
+        {
+            "type": "file_search",
+            "vector_store_ids": [vector_store_id]
+        },
+        {
+            "type": "function",
             "name": "create_lead",
             "description": "Use this function to create a new lead in the HubSpot CRM. This should only be used after a user expresses clear interest in a membership or trial AND you have successfully collected their full name and email address.",
             "strict": True,
@@ -148,73 +154,8 @@ tools = [
                 "additionalProperties": False
             }
         }
-    }
-]
+    ]
 
-async def get_ai_response(message: str, history: List[Dict[str, str]]) -> Tuple[str, Dict[str, Any]]:
-    try:
-        # Get vector store ID from environment
-        vector_store_id = os.getenv("VECTOR_STORE_ID")
-        if not vector_store_id:
-            raise HTTPException(status_code=500, detail="Vector store ID not configured")
-
-        # Construct conversation messages list
-        conversation_messages = [{"role": "system", "content": SYSTEM_PROMPT}]
-        conversation_messages.extend(history)
-        conversation_messages.append({"role": "user", "content": message})
-
-        # Make API call to OpenAI
-        logger.info(f"Making OpenAI API call for message: {message[:100]}...")
-        start_time = time.time()
-        model_name = "gpt-4.1"
-        response = client.responses.create(
-            model=model_name,
-            input=conversation_messages,
-            tools=tools,
-            tool_choice="auto",
-            tool_resources={
-             "file_search": {
-                "vector_store_ids": [os.getenv("VECTOR_STORE_ID")]
-                }
-            },
-        ) # type: ignore
-
-        end_time = time.time()
-        latency_ms = int((end_time - start_time) * 1000)
-
-        # Extract the assistant's reply from response.output
-        response_text = None
-        for item in response.output:
-            if hasattr(item, 'type') and item.type == 'message':
-                if hasattr(item, 'role') and item.role == 'assistant':
-                    if hasattr(item, 'content') and len(item.content) > 0:
-                        response_text = item.content[0].text
-                        break
-
-        if not response_text:
-            raise HTTPException(status_code=500, detail="Failed to get response from AI model")
-        
-        logger.info(f"AI response generated: {response_text[:100]}...")
-        
-        # Extract token usage from response
-        usage = response.usage
-        total_tokens = usage.total_tokens if usage else 0
-        
-        # Prepare metadata with token information
-        metadata = {
-            "model": model_name,
-            "latency_ms": latency_ms,
-            "total_tokens": total_tokens
-        }
-
-        return response_text, metadata
-
-    except Exception as e:
-        logger.error(f"Error in get_ai_response: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail="An error occurred while processing your request. Please try again later."
-        )
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest, db: Session = Depends(database.get_db)):
@@ -239,21 +180,230 @@ async def chat(request: ChatRequest, db: Session = Depends(database.get_db)):
             extra_data_payload=user_metadata
         )
         
-        # Get AI response with metadata
-        reply, ai_metadata = await get_ai_response(request.message, request.history)
+        # Get vector store ID from environment
+        vector_store_id = os.getenv("VECTOR_STORE_ID")
+        if not vector_store_id:
+            raise HTTPException(status_code=500, detail="Vector store ID not configured")
+
+        # Construct conversation messages list
+        conversation_messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+        conversation_messages.extend(request.history)
+        conversation_messages.append({"role": "user", "content": request.message})
+
+        # STEP 1: Make first API call to OpenAI
+        logger.info(f"Making first OpenAI API call for message: {request.message[:100]}...")
+        start_time = time.time()
+        model_name = "gpt-4.1"
+        tools_array = get_tools_array(vector_store_id)
+        first_response = client.responses.create(
+            model=model_name,
+            input=conversation_messages,
+            tools=tools_array,
+            tool_choice="auto"
+        ) # type: ignore
+
+        first_end_time = time.time()
+        first_latency_ms = int((first_end_time - start_time) * 1000)
         
-        # Log assistant message
+        # Debug logging for response structure
+        logger.info(f"First response output length: {len(first_response.output) if first_response.output else 0}")
+        for i, item in enumerate(first_response.output or []):
+            logger.info(f"Output item {i}: type={getattr(item, 'type', 'unknown')}, role={getattr(item, 'role', 'unknown')}")
+            if hasattr(item, 'content') and getattr(item, 'type', None) == 'message':
+                logger.info(f"  Content length: {len(item.content) if item.content else 0}")
+                for j, content_item in enumerate(item.content or []):
+                    logger.info(f"    Content item {j}: type={getattr(content_item, 'type', 'unknown')}")
+
+        # Check if tool_call exists in first response
+        tool_call_found = False
+        tool_calls_executed = []
+        hubspot_results = []
+        
+        for item in first_response.output:
+            if hasattr(item, 'type') and item.type == 'function_call':
+                tool_call_found = True
+                if hasattr(item, 'name') and item.name == 'create_lead':
+                    logger.info("Tool call detected - processing lead creation")
+                    
+                    # Initialize variables to ensure they're always defined
+                    arguments = {}
+                    hubspot_result = {"status": "error", "error": "Unknown error"}
+                    
+                    # Execute HubSpot lead creation
+                    try:
+                        arguments = json.loads(item.arguments) if hasattr(item, 'arguments') else {}
+                        name = arguments.get('name', '')
+                        email = arguments.get('email', '')
+                        summary = arguments.get('summary', '')
+                        
+                        logger.info(f"Creating HubSpot lead: {name} ({email})")
+                        hubspot_result = create_lead(name, email, summary)
+                        
+                        tool_calls_executed.append({
+                            "tool": "create_lead",
+                            "arguments": arguments,
+                            "result": hubspot_result
+                        })
+                        hubspot_results.append(hubspot_result)
+                        
+                        logger.info(f"HubSpot lead creation result: {hubspot_result}")
+                        
+                    except Exception as hubspot_error:
+                        logger.error(f"HubSpot lead creation failed: {str(hubspot_error)}")
+                        error_result = {"status": "error", "error": str(hubspot_error)}
+                        tool_calls_executed.append({
+                            "tool": "create_lead",
+                            "arguments": arguments,
+                            "result": error_result
+                        })
+                        hubspot_results.append(error_result)
+                        hubspot_result = error_result  # Update hubspot_result for context message
+                    break
+
+        if tool_call_found:
+            # STEP 2: Make second API call with function call and result
+            logger.info("Making second OpenAI API call with function call result...")
+            
+            # Find the function call item from the first response
+            function_call_item = None
+            for item in first_response.output:
+                if hasattr(item, 'type') and item.type == 'function_call':
+                    function_call_item = item
+                    break
+            
+            if function_call_item and tool_calls_executed:
+                # Append the function call to conversation messages
+                conversation_messages.append(function_call_item)
+                
+                # Append the function result
+                tool_result = tool_calls_executed[0]["result"]
+                result_output = f"Lead creation {'successful' if tool_result.get('status') == 'success' else 'failed'}"
+                
+                conversation_messages.append({
+                    "type": "function_call_output",
+                    "call_id": getattr(function_call_item, 'call_id', 'unknown'),
+                    "output": result_output
+                })
+            
+            second_start_time = time.time()
+            second_response = client.responses.create(
+                model=model_name,
+                input=conversation_messages,
+                tools=tools_array,
+                tool_choice="auto"
+            ) # type: ignore
+            
+            second_end_time = time.time()
+            second_latency_ms = int((second_end_time - second_start_time) * 1000)
+            total_latency_ms = first_latency_ms + second_latency_ms
+            
+            # Extract final text response from second call using output_text property
+            response_text = getattr(second_response, 'output_text', None)
+            if not response_text:
+                # Fallback to manual parsing if output_text is not available
+                for item in second_response.output:
+                    if hasattr(item, 'type') and item.type == 'message':
+                        if hasattr(item, 'role') and item.role == 'assistant':
+                            if hasattr(item, 'content') and len(item.content) > 0:
+                                # Look for content items with type 'output_text'
+                                for content_item in item.content:
+                                    if hasattr(content_item, 'type') and content_item.type == 'output_text':
+                                        response_text = content_item.text
+                                        break
+                                if response_text:
+                                    break
+            
+            if not response_text:
+                logger.error("Failed to extract response text from second API call")
+                logger.error(f"Second response structure: {[(getattr(item, 'type', 'unknown'), getattr(item, 'role', 'unknown')) for item in second_response.output or []]}")
+                raise HTTPException(status_code=500, detail="Failed to get final response from AI model")
+                
+            # Extract token usage from both responses
+            first_usage = first_response.usage
+            second_usage = second_response.usage
+            total_tokens = (first_usage.total_tokens if first_usage else 0) + (second_usage.total_tokens if second_usage else 0)
+            
+            logger.info(f"Two-step tool calling completed: {response_text[:100]}...")
+            
+        else:
+            # No tool call - extract text from first response using output_text property
+            logger.info("No tool call detected - extracting text response")
+            response_text = getattr(first_response, 'output_text', None)
+            if not response_text:
+                # Fallback to manual parsing if output_text is not available
+                for item in first_response.output:
+                    if hasattr(item, 'type') and item.type == 'message':
+                        if hasattr(item, 'role') and item.role == 'assistant':
+                            if hasattr(item, 'content') and len(item.content) > 0:
+                                # Look for content items with type 'output_text'
+                                for content_item in item.content:
+                                    if hasattr(content_item, 'type') and content_item.type == 'output_text':
+                                        response_text = content_item.text
+                                        break
+                                if response_text:
+                                    break
+            
+            if not response_text:
+                logger.error("Failed to extract response text from first API call")
+                logger.error(f"First response structure: {[(getattr(item, 'type', 'unknown'), getattr(item, 'role', 'unknown')) for item in first_response.output or []]}")
+                raise HTTPException(status_code=500, detail="Failed to get response from AI model")
+                
+            # Extract token usage from first response only
+            first_usage = first_response.usage
+            total_tokens = first_usage.total_tokens if first_usage else 0
+            total_latency_ms = first_latency_ms
+            
+            logger.info(f"Single-step response completed: {response_text[:100]}...")
+        
+        # Prepare metadata with token information and tool calls
+        ai_metadata = {
+            "model": model_name,
+            "latency_ms": total_latency_ms,
+            "total_tokens": total_tokens,
+            "tool_calls": tool_calls_executed,
+            "hubspot_results": hubspot_results,
+            "two_step_process": tool_call_found
+        }
+        
+        # Log assistant message with enhanced metadata
         crud.create_message(
             db=db,
             conversation_id=int(conversation.id),
             role="assistant",
-            content=reply,
+            content=response_text,
             extra_data_payload=ai_metadata
         )
         
-        logger.info(f"Chat response sent: {reply[:100]}...")
-        return ChatResponse(reply=reply)
+        # Log tool calls if any were executed
+        if tool_calls_executed:
+            for tool_call in tool_calls_executed:
+                if tool_call["tool"] == "create_lead":
+                    logger.info(f"Lead generation tool called for conversation {conversation.id}: {tool_call}")
+                    # Log the tool call as a separate message for analytics
+                    tool_metadata = {
+                        "content_type": "tool_call",
+                        "tool_name": tool_call["tool"],
+                        "tool_arguments": tool_call["arguments"],
+                        "tool_result": tool_call["result"],
+                        "hubspot_status": tool_call["result"].get("status", "unknown")
+                    }
+                    crud.create_message(
+                        db=db,
+                        conversation_id=int(conversation.id),
+                        role="assistant",
+                        content=f"Tool executed: {tool_call['tool']}",
+                        extra_data_payload=tool_metadata
+                    )
+        
+        # Commit all database changes
+        db.commit()
+        
+        logger.info(f"Chat response sent: {response_text[:100]}...")
+        return ChatResponse(reply=response_text)
+        
     except Exception as e:
+        # Rollback database changes on error
+        db.rollback()
         logger.error(f"Error in chat endpoint: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=500,
