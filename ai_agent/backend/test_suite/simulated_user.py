@@ -16,27 +16,32 @@ class SimulatedUser:
         self.conversation_history = []
         self.model = SIMULATED_USER_MODEL
         self.goal_achieved = False
+        self.is_first_turn = True
         
     def generate_response(self, chatbot_message: str) -> str:
         """Generate a response as the simulated user"""
         # Initialize OpenAI client
         client = OpenAI(api_key=OPENAI_API_KEY)
         
-        # Build conversation context
+        # Build conversation context - use different prompts for first turn vs follow-ups
+        if self.is_first_turn:
+            system_prompt = self.build_initial_prompt()
+        else:
+            system_prompt = self.build_follow_up_prompt(self._get_conversation_history(), chatbot_message)
+        
         messages = [
             {
                 "role": "system", 
-                "content": self._build_system_prompt()
+                "content": system_prompt
             }
         ]
         
-        # Add conversation history
-        for msg in self.conversation_history:
-            messages.append(msg)
-        
-        # Add the latest chatbot message
-        if chatbot_message:
-            messages.append({"role": "assistant", "content": chatbot_message})
+        # For first turn, we don't need conversation history in messages
+        # For follow-up turns, the history is already included in the system prompt
+        if not self.is_first_turn:
+            # Add the latest chatbot message for follow-up turns
+            if chatbot_message:
+                messages.append({"role": "assistant", "content": chatbot_message})
         
         try:
             response = client.responses.create(
@@ -51,6 +56,10 @@ class SimulatedUser:
                 self.conversation_history.append({"role": "assistant", "content": chatbot_message})
             self.conversation_history.append({"role": "user", "content": user_response})
             
+            # After first turn, set flag to false
+            if self.is_first_turn:
+                self.is_first_turn = False
+            
             # Check if goal is achieved (user provided contact info)
             if self._check_goal_achieved(user_response):
                 self.goal_achieved = True
@@ -62,42 +71,73 @@ class SimulatedUser:
             logger.error(f"Error generating simulated user response: {e}")
             return "I'm having trouble responding right now. Can you help me with my fitness goals?"
     
-    def _build_system_prompt(self) -> str:
-        """Build system prompt for the simulated user"""
+    def build_initial_prompt(self):
+        """Builds the system prompt for the FIRST turn of the conversation."""
         return f"""
-You are a potential gym member interested in joining Anytime Fitness India. You are chatting with their official AI assistant.
+You are an AI roleplayer. Your sole purpose is to realistically simulate a potential gym member named {self.persona['name']} from India.
 
-PERSONA:
-- Name: {self.persona['name']}
-- Email: {self.persona['email']}
-- Age: {self.persona['age']}
-- Background: {self.persona['background']}
-- Fitness Goal: {self.persona['fitness_goal']}
-- Communication Style: {self.persona['communication_style']}
+### Your Persona Details
+- **Name:** {self.persona['name']}
+- **Background:** {self.persona['background']}
+- **Primary Goal:** {self.persona['fitness_goal']}
+- **Communication Style:** {self.persona['communication_style']}
 
-CONVERSATION GOAL:
-{self.persona['conversation_goal']}
+### Your Conversational Plan
+1.  **Your First Message:** Your first message should ONLY address the following point: **"{self.persona['initial_query']}"**
+2.  **Potential Next Questions:** You have other things you're curious about, like: {', '.join(self.persona['potential_follow_ups'])}. Do NOT ask about these yet. You will bring them up one by one in later messages if the conversation flows naturally.
 
-INSTRUCTIONS FOR YOUR ROLE:
+### CRITICAL RULES FOR YOUR ROLE
+1.  **PACE YOURSELF:** Your single most important rule is to ask only ONE main question at a time. Do not dump all your questions in the first message.
+2.  **STAY IN CHARACTER:** You are {self.persona['name']}. You must NEVER reveal you are an AI or a roleplayer. Adhere strictly to your communication style.
+3.  **BE REALISTIC:** Speak in a casual, natural way. Use short sentences. It's okay to have typos or use informal language (e.g., "thnx," "ok," "btw"). You are a real person, not a perfect script.
 
-1. Speak in a friendly, natural, and relatable way — like how someone from your city or region might casually chat online.
-2. Show genuine interest in improving your health or fitness and learning more about the gym.
-3. Ask follow-up questions where it feels appropriate (e.g., about gym timings, equipment, offers, trainers).
-4. Let your interest build gradually — you're curious and want to know more, but you're not in a rush.
-5. When asked, provide your name and email ID naturally, like you would if someone helpful was offering to assist you.
-6. Don’t be overly eager — respond realistically, maybe even mention work timings, family, or commute, if relevant.
-7. Stay true to your communication style — whether direct, cautious, enthusiastic, or skeptical.
-8. If the chatbot offers to have someone from the gym reach out to you via phone or WhatsApp, and you're interested, go ahead and say yes.
-9. Keep it casual and human — don’t sound scripted or robotic.
-10. Don’t say “I want to join” right away — let the conversation feel organic and motivated by curiosity or personal fitness needs.
-
-CONTACT DETAILS TO GIVE IF ASKED:
-- Name: {self.persona['name']}
-- Email: {self.persona['email']}
-
-Remember: You are an Indian user chatting with a gym assistant — act like a real person would, and make the conversation feel easy-going, genuine, and human.
+Based on all of this, generate ONLY the first message from {self.persona['name']}.
 """
 
+    def build_follow_up_prompt(self, conversation_history, last_agent_message):
+        """Builds the re-grounding prompt for all subsequent turns."""
+        return f"""
+You are an AI roleplayer. Your sole purpose is to realistically continue a conversation as {self.persona['name']}, a potential gym member from India.
+
+### Your Persona Details (Reminder)
+- **Name:** {self.persona['name']}
+- **Background:** {self.persona['background']}
+- **Primary Goal:** {self.persona['fitness_goal']}
+- **Communication Style:** {self.persona['communication_style']}
+- **Things you still might want to ask:** {', '.join(self.persona['potential_follow_ups'])}
+
+---
+### CONVERSATION HISTORY SO FAR
+{conversation_history}
+---
+
+### YOUR TASK NOW
+
+The gym assistant just said: "{last_agent_message}"
+
+You are {self.persona['name']}. What is your **brief, natural, and in-character** response?
+
+**Instructions for this turn:**
+1.  **React to the assistant's message.** Does it answer your question? Is it helpful?
+2.  **Decide your next move.** You can either ask a new question (maybe from your list of things to ask) or simply acknowledge their response.
+3.  **Keep it brief.** A real person wouldn't write a long paragraph. Just one or two short sentences.
+
+**ABSOLUTELY NEVER** copy the assistant's style or tone. You are the customer. Stay in your role.
+
+Generate ONLY the response from {self.persona['name']}.
+"""
+
+    def _get_conversation_history(self) -> str:
+        """Format conversation history as a readable string"""
+        if not self.conversation_history:
+            return "No conversation history yet."
+        
+        history_text = ""
+        for msg in self.conversation_history:
+            role = "You" if msg["role"] == "user" else "Gym Assistant"
+            history_text += f"{role}: {msg['content']}\n"
+        
+        return history_text.strip()
 
     def _check_goal_achieved(self, response: str) -> bool:
         """Check if the user has achieved their goal (provided contact info)"""
