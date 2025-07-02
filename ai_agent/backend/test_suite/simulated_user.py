@@ -3,15 +3,15 @@ Simulated User AI for testing the Anytime Fitness chatbot
 """
 import json
 import logging
-from typing import Dict, List, Optional
+from typing import Dict
 from openai import OpenAI
 from .config import OPENAI_API_KEY, SIMULATED_USER_MODEL
 
 logger = logging.getLogger(__name__)
 
 class SimulatedUser:
+    
     def __init__(self, persona: Dict):
-        self.client = OpenAI(api_key=OPENAI_API_KEY)
         self.persona = persona
         self.conversation_history = []
         self.model = SIMULATED_USER_MODEL
@@ -19,6 +19,8 @@ class SimulatedUser:
         
     def generate_response(self, chatbot_message: str) -> str:
         """Generate a response as the simulated user"""
+        # Initialize OpenAI client
+        client = OpenAI(api_key=OPENAI_API_KEY)
         
         # Build conversation context
         messages = [
@@ -37,14 +39,12 @@ class SimulatedUser:
             messages.append({"role": "assistant", "content": chatbot_message})
         
         try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                max_tokens=200,
-                temperature=0.7
+            response = client.responses.create(
+                model="gpt-4.1-mini",
+                input=messages
             )
             
-            user_response = response.choices[0].message.content.strip()
+            user_response = response.output_text.strip() if response.output_text else ""
             
             # Update conversation history
             if chatbot_message:
