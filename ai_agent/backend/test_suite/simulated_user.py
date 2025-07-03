@@ -14,7 +14,9 @@ class SimulatedUser:
     def __init__(self, persona: Dict):
         self.persona = persona
         self.conversation_history = []
-        self.goal_achieved = False
+        self.goal_achieved = False  # Keep for backwards compatibility 
+        self.conversation_ended = False
+        self.ending_reason = None
         self.is_first_turn = True
         
     def generate_response(self, chatbot_message: str) -> str:
@@ -59,9 +61,16 @@ class SimulatedUser:
             if self.is_first_turn:
                 self.is_first_turn = False
             
-            # Check if goal is achieved (user provided contact info)
+            # Check if goal is achieved (user provided contact info) - for backwards compatibility
             if self._check_goal_achieved(user_response):
                 self.goal_achieved = True
+            
+            # Check if conversation should end based on special marker
+            if self._check_conversation_end(user_response):
+                self.conversation_ended = True
+                # Remove the special marker from the response before returning
+                user_response = user_response.replace("##END_CONV_7X9Z##", "").strip()
+                logger.info(f"🔚 Conversation ended by AI user. Reason: {self.ending_reason}")
                 
             logger.info(f"Simulated user response: {user_response[:100]}...")
             return user_response
@@ -89,6 +98,7 @@ You are an AI roleplayer. Your sole purpose is to realistically simulate a poten
 1.  **PACE YOURSELF:** Your single most important rule is to ask only ONE main question at a time. Do not dump all your questions in the first message.
 2.  **STAY IN CHARACTER:** You are {self.persona['name']}. You must NEVER reveal you are an AI or a roleplayer. Adhere strictly to your communication style.
 3.  **BE REALISTIC:** Speak in a casual, natural way. Use short sentences. It's okay to have typos or use informal language (e.g., "thnx," "ok," "btw"). You are a real person, not a perfect script.
+4.  **NATURAL ENDINGS:** Throughout the conversation, you'll decide when to naturally end it based on getting answers, frustration, lack of interest, etc. If you ever want to end the conversation, end your message with: ##END_CONV_7X9Z##
 
 Based on all of this, generate ONLY the first message from {self.persona['name']}.
 """
@@ -121,6 +131,41 @@ You are {self.persona['name']}. What is your **brief, natural, and in-character*
 2.  **Decide your next move.** You can either ask a new question (maybe from your list of things to ask) or simply acknowledge their response.
 3.  **Keep it brief.** A real person wouldn't write a long paragraph. Just one or two short sentences.
 
+### IMPORTANT: CONVERSATION ENDING DECISION
+
+**BEFORE generating your response, decide if this conversation should naturally end.** Consider ending the conversation if:
+
+**SATISFIED Ending** - You got the answers you needed:
+- The assistant answered your main questions satisfactorily
+- You have enough information to make a decision
+- You feel the conversation has served its purpose
+
+**FRUSTRATED Ending** - Poor service or unhelpful responses:
+- The assistant said they can't help with your topic
+- You received confusing, incorrect, or unhelpful information
+- The assistant is being repetitive or not understanding you
+
+**NOT_INTERESTED Ending** - This isn't for you:
+- You realized this gym/service isn't what you're looking for
+- The cost/location/features don't match your needs
+- You want to explore other options first
+
+**NEED_TIME Ending** - Need to think about it:
+- You got good information but need time to decide
+- You want to discuss with family/friends
+- You're comparing multiple options
+
+**PROVIDED_DETAILS Ending** - You shared contact information:
+- You gave your name and email/phone for follow-up
+- You're expecting someone to contact you
+- The next step is waiting for their team to reach out
+
+**LOOP DETECTION** - If your last 2 responses were very similar or you're repeating yourself, END the conversation.
+
+**If you decide to END the conversation:**
+1. Write a natural, brief goodbye message appropriate to your ending reason
+2. Add this EXACT special marker at the very end: ##END_CONV_7X9Z##
+
 **ABSOLUTELY NEVER** copy the assistant's style or tone. You are the customer. Stay in your role.
 
 Generate ONLY the response from {self.persona['name']}.
@@ -147,11 +192,39 @@ Generate ONLY the response from {self.persona['name']}.
         
         return email in response_lower or (name in response_lower and '@' in response_lower)
     
+    def _check_conversation_end(self, response: str) -> bool:
+        """Check if the conversation should end based on special marker"""
+        if "##END_CONV_7X9Z##" in response:
+            # Determine ending reason based on response content
+            self.ending_reason = self._determine_ending_reason(response)
+            return True
+        return False
+    
+    def _determine_ending_reason(self, response: str) -> str:
+        """Determine the reason for ending the conversation based on response content"""
+        response_lower = response.lower()
+        
+        # Check for different ending patterns
+        if any(phrase in response_lower for phrase in ['thanks', 'thank you', 'got it', 'that helps', 'appreciate']):
+            return "SATISFIED"
+        elif any(phrase in response_lower for phrase in ['can\'t help', 'not helpful', 'doesn\'t work', 'confused', 'frustrated']):
+            return "FRUSTRATED"
+        elif any(phrase in response_lower for phrase in ['not interested', 'not for me', 'looking elsewhere', 'other options']):
+            return "NOT_INTERESTED"
+        elif any(phrase in response_lower for phrase in ['think about', 'consider', 'discuss', 'family', 'partner']):
+            return "NEED_TIME"
+        elif any(phrase in response_lower for phrase in ['email', 'phone', 'contact', 'reach out', 'call me']):
+            return "PROVIDED_DETAILS"
+        else:
+            return "NATURAL_END"
+    
     def get_conversation_summary(self) -> Dict:
         """Get summary of the conversation"""
         return {
             'persona': self.persona,
             'total_messages': len(self.conversation_history),
-            'goal_achieved': self.goal_achieved,
+            'goal_achieved': self.goal_achieved,  # Keep for backwards compatibility
+            'conversation_ended': self.conversation_ended,
+            'ending_reason': self.ending_reason,
             'conversation_history': self.conversation_history
         }

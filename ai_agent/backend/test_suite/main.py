@@ -84,7 +84,7 @@ class TestSuite:
                         hubspot_status='test_generated'
                     )
             
-            # Update test run with results
+            # Update test run with results including ending information
             self.db.update_test_run_result(
                 test_run_id=test_run_id,
                 success=result['lead_generated'],  # Use lead_generated as success indicator
@@ -92,6 +92,14 @@ class TestSuite:
                 total_messages=result['total_messages'],
                 conversation_duration=result['conversation_duration_seconds']
             )
+            
+            # Update test metadata with ending information
+            ending_metadata = {
+                'conversation_ended_naturally': result.get('conversation_ended_naturally', False),
+                'ending_reason': result.get('ending_reason'),
+                'persona_goal_achieved': result['simulated_user_summary'].get('goal_achieved', False)
+            }
+            self.db.update_test_run_metadata(test_run_id, ending_metadata)
             
             # Generate conversation summary for all completed conversations (successful or not)
             try:

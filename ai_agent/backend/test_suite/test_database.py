@@ -241,6 +241,29 @@ class TestDatabase:
         finally:
             session.close()
     
+    def update_test_run_metadata(self, test_run_id: int, ending_metadata: dict):
+        """Update test run metadata with ending information"""
+        from .test_models import TestRun
+        
+        session = self.get_session()
+        try:
+            test_run = session.query(TestRun).filter(TestRun.id == test_run_id).first()
+            if test_run:
+                # Merge with existing metadata
+                current_metadata = test_run.test_metadata or {}
+                current_metadata.update(ending_metadata)
+                test_run.test_metadata = current_metadata
+                session.commit()
+                logger.info(f"Updated test run {test_run_id} metadata with ending information")
+            else:
+                logger.warning(f"Test run {test_run_id} not found for metadata update")
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Error updating test run {test_run_id} metadata: {e}")
+            raise
+        finally:
+            session.close()
+    
     def get_test_run_results(self, test_run_id: int) -> Optional[Dict]:
         """Get complete test run results"""
         from .test_models import TestRun, TestMessage, TestLead

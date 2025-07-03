@@ -99,12 +99,19 @@ class ConversationSummarizer:
         Returns:
             Formatted conversation context string
         """
+        # Extract ending information from metadata
+        metadata = test_run.get('test_metadata', {})
+        ending_reason = metadata.get('ending_reason', 'Unknown')
+        ended_naturally = metadata.get('conversation_ended_naturally', False)
+        
         context_parts = [
             f"Test Scenario: {test_run['scenario_name']}",
             f"Total Messages: {len(messages)}",
             f"Duration: {test_run['conversation_duration_seconds']} seconds",
             f"Lead Generated: {'Yes' if test_run['lead_generated'] else 'No'}",
             f"Success: {'Yes' if test_run['success'] else 'No'}",
+            f"Conversation Ended: {'Naturally by user' if ended_naturally else 'Max messages reached'}",
+            f"Ending Reason: {ending_reason}",
             "",
             "Conversation Flow:"
         ]
@@ -140,9 +147,11 @@ Focus on:
 - The overall vibe and flow of the conversation
 - How well the AI handled the user's needs
 - Whether lead generation was successful (contact info collected)
+- How the conversation ended and why (satisfied, frustrated, not interested, etc.)
+- The ending reason and whether it was natural or reached max messages
 - Key outcomes or next steps
 
-Keep the summary to 2-3 sentences maximum. Make it glanceable and informative - capture the "story" of this conversation rather than a detailed transcript.
+Keep the summary to 2-3 sentences maximum. Make it glanceable and informative - capture the "story" of this conversation including how and why it concluded.
 
 {conversation_context}
 

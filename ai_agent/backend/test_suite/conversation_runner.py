@@ -2,7 +2,6 @@
 Conversation runner for testing between simulated user and Anytime Fitness chatbot
 """
 import requests
-import json
 import time
 import uuid
 import logging
@@ -60,23 +59,23 @@ class ConversationRunner:
                 'is_lead_generated': create_lead_success
             })
             
-            # Check for lead generation
+            # Track lead generation for analytics (don't end conversation)
             if create_lead_success:
-                logger.info("🎯 LEAD GENERATION DETECTED - conversation completed successfully")
+                logger.info("🔍 LEAD GENERATION DETECTED - tracked for analytics")
                 logger.info(f"Lead generation occurred after {message_count} message exchanges")
                 lead_generated = True
-                break
                 
             # Generate next user response
             user_message = simulated_user.generate_response(chatbot_response)
             
-            # If simulated user achieved goal, continue ONE MORE EXCHANGE to let AI agent respond
-            if simulated_user.goal_achieved:
-                logger.info("Simulated user goal achieved - allowing AI agent to respond")
-                # Don't break here - let the AI agent respond to the user's details
-                # The conversation will end when lead generation is detected or max messages reached
+            # Check if AI user decided to end the conversation
+            if simulated_user.conversation_ended:
+                logger.info(f"🔚 CONVERSATION ENDED by AI user - Reason: {simulated_user.ending_reason}")
+                logger.info(f"Conversation ended after {message_count} message exchanges")
+                break
                 
             # Add delay to simulate human response time
+            time.sleep(1)  # Add back the delay that was missing
             
         
         end_time = time.time()
@@ -84,8 +83,9 @@ class ConversationRunner:
         
         # Build result summary
         result = {
-            # 'success': lead_generated,
             'lead_generated': lead_generated,
+            'conversation_ended_naturally': simulated_user.conversation_ended,
+            'ending_reason': simulated_user.ending_reason,
             'total_messages': len(conversation_log),
             'conversation_duration_seconds': conversation_duration,
             'conversation_log': conversation_log,
@@ -94,7 +94,9 @@ class ConversationRunner:
             'simulated_user_summary': simulated_user.get_conversation_summary()
         }
         
-        logger.info(f"Conversation completed. Success: {lead_generated}, Messages: {len(conversation_log)}")
+        # Enhanced completion logging
+        ending_info = f"naturally (reason: {simulated_user.ending_reason})" if simulated_user.conversation_ended else "due to max messages"
+        logger.info(f"Conversation completed {ending_info}. Lead generated: {lead_generated}, Messages: {len(conversation_log)}")
         return result
     
     def _send_message_to_chatbot(self, message: str) -> Tuple[Optional[str], List[Dict]]:
