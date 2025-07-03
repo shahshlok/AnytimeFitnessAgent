@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException, UploadFile, File, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, StrictBool
 from typing import List, Dict
 from sqlalchemy.orm import Session
 from sqlalchemy import func, extract, desc, Float
@@ -104,11 +104,12 @@ You must track the conversation's state and act accordingly. The four states are
     -   *Example:* "Would you like me to have someone from our team reach out with more personalized information about [the specific thing they asked about]?"
 -   **State Transition:** Once you make the offer, you immediately transition to the `OFFER_MADE` state.
 
-**3. State: `OFFER_MADE`**
--   **Your Job:** Wait for the user's direct response to your offer.
--   **Possible Outcomes:**
-    -   **If the user agrees** (e.g., "Yes, please," "Sure"): Ask for their contact details (e.g., "Great! Could you please share your full name and email address?"). After asking, you **immediately transition to the `AWAITING_DETAILS` state.**
-    -   **If the user ignores the offer and asks another question** (e.g., "Okay, but what about parking?"): You **MUST NOT** repeat the offer. Your only job is to answer their new question. You immediately revert to the `ANSWERING` state. This acts as a "cooldown" to prevent you from being pushy.
+3. State: `OFFER_MADE`
+- Your Job: Analyze the user's response to your offer.
+- Logic:
+    1.  **First, check for agreement.** Does the user's message contain clear agreement (e.g., "Yes, please," "Sure," "Okay, do that")?
+    2.  **If agreement IS present:** Your action is decided. Your ONLY response this turn is to ask for their contact details ("Great! Could you please share your full name and email address?"). Ignore any other questions they may have asked in the same message; you can answer them later if they repeat them. After asking for details, **immediately transition to the `AWAITING_DETAILS` state.**
+    3.  **If agreement IS NOT present** and the user only asks another question: Revert to the `ANSWERING` state and answer their question. This is your "cooldown" path.
 
 **4. State: `AWAITING_DETAILS` (Patiently Waiting)**
 -   **Your Job:** You have already asked for the user's contact information, and you are now waiting for them to provide it. This is your primary task in this state.
@@ -143,6 +144,9 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     reply: str
+    is_create_lead: StrictBool = False
+    hubspot_success: StrictBool = False
+    create_lead_arguments: Dict = {}
 
 
 class SpeakRequest(BaseModel):
@@ -400,6 +404,13 @@ async def chat(request: ChatRequest, db: Session = Depends(database.get_db)):
             extra_data_payload=ai_metadata
         )
         
+        # Initialize tool metadata for response
+        response_tool_metadata = {
+            "tool_name": None,
+            "hubspot_status": None,
+            "arguments": {}
+        }
+        
         # Log tool calls if any were executed
         if tool_calls_executed:
             for tool_call in tool_calls_executed:
@@ -420,12 +431,24 @@ async def chat(request: ChatRequest, db: Session = Depends(database.get_db)):
                         content=f"Tool executed: {tool_call['tool']}",
                         extra_data_payload=tool_metadata
                     )
+                    
+                    # Update response metadata
+                    response_tool_metadata = {
+                        "tool_name": tool_call["tool"],
+                        "hubspot_status": tool_call["result"].get("status", "unknown"),
+                        "arguments": tool_call["arguments"]
+                    }
         
         # Commit all database changes
         db.commit()
         
         logger.info(f"Chat response sent: {response_text[:100]}...")
-        return ChatResponse(reply=response_text)
+        return ChatResponse(
+            reply=response_text,
+            is_create_lead= response_tool_metadata["tool_name"] == "create_lead",
+            hubspot_success= response_tool_metadata["hubspot_status"] == "success",
+            create_lead_arguments= response_tool_metadata["arguments"]
+        )
         
     except Exception as e:
         # Rollback database changes on error

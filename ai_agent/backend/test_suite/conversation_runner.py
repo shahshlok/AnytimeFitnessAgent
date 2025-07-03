@@ -32,14 +32,13 @@ class ConversationRunner:
         message_count = 0
         start_time = time.time()
         lead_generated = False
-        lead_data = None
         
         while message_count < MAX_CONVERSATION_MESSAGES:
             message_count += 1
             
             # Send user message to chatbot
             logger.info(f"Message {message_count}: User -> Chatbot")
-            chatbot_response, tool_calls = self._send_message_to_chatbot(user_message)
+            chatbot_response, create_lead_success = self._send_message_to_chatbot(user_message)
             
             if not chatbot_response:
                 logger.error("Failed to get response from chatbot")
@@ -58,29 +57,24 @@ class ConversationRunner:
                 'role': 'assistant', 
                 'content': chatbot_response,
                 'timestamp': time.time(),
-                'tool_calls': tool_calls
+                'is_lead_generated': create_lead_success
             })
             
             # Check for lead generation
-            if tool_calls:
-                for tool_call in tool_calls:
-                    if tool_call.get('tool') == 'create_lead':
-                        lead_generated = True
-                        lead_data = tool_call.get('arguments', {})
-                        logger.info(f"Lead generated: {lead_data}")
-            
-            # If lead was generated, conversation goal achieved
-            if lead_generated:
-                logger.info("Lead generation detected - conversation completed successfully")
+            if create_lead_success:
+                logger.info("🎯 LEAD GENERATION DETECTED - conversation completed successfully")
+                logger.info(f"Lead generation occurred after {message_count} message exchanges")
+                lead_generated = True
                 break
                 
             # Generate next user response
             user_message = simulated_user.generate_response(chatbot_response)
             
-            # If simulated user achieved goal, break
+            # If simulated user achieved goal, continue ONE MORE EXCHANGE to let AI agent respond
             if simulated_user.goal_achieved:
-                logger.info("Simulated user goal achieved")
-                break
+                logger.info("Simulated user goal achieved - allowing AI agent to respond")
+                # Don't break here - let the AI agent respond to the user's details
+                # The conversation will end when lead generation is detected or max messages reached
                 
             # Add delay to simulate human response time
             time.sleep(MESSAGE_DELAY_SECONDS)
@@ -90,9 +84,8 @@ class ConversationRunner:
         
         # Build result summary
         result = {
-            'success': lead_generated,
+            # 'success': lead_generated,
             'lead_generated': lead_generated,
-            'lead_data': lead_data,
             'total_messages': len(conversation_log),
             'conversation_duration_seconds': conversation_duration,
             'conversation_log': conversation_log,
@@ -129,10 +122,19 @@ class ConversationRunner:
                 self.conversation_history.append({'role': 'user', 'content': message})
                 self.conversation_history.append({'role': 'assistant', 'content': chatbot_reply})
                 
-                # Extract tool calls from response (if any)
-                tool_calls = self._extract_tool_calls_from_response(data)
+                # Get data about if the conversation resulted in a lead generation
+                create_lead_success = data.get('is_create_lead', False)
+                hubspot_success = data.get('hubspot_success', False)
+                create_lead_arguments = data.get('create_lead_arguments', {})
                 
-                return chatbot_reply, tool_calls
+                # Enhanced logging for lead generation detection
+                if create_lead_success:
+                    logger.info("🔍 Lead generation API response detected:")
+                    logger.info(f"  - is_create_lead: {create_lead_success}")
+                    logger.info(f"  - hubspot_success: {hubspot_success}")
+                    logger.info(f"  - create_lead_arguments: {create_lead_arguments}")
+                
+                return chatbot_reply, create_lead_success
             else:
                 logger.error(f"Chatbot API error: {response.status_code} - {response.text}")
                 return None, []

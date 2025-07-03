@@ -64,19 +64,31 @@ class TestSuite:
                 )
             
             # Store lead data if generated
-            if result['lead_generated'] and result['lead_data']:
-                self.db.add_test_lead(
-                    test_run_id=test_run_id,
-                    name=result['lead_data'].get('name', persona['name']),
-                    email=result['lead_data'].get('email', persona['email']),
-                    summary=result['lead_data'].get('summary', 'Lead generated during test'),
-                    hubspot_status='test_generated'
-                )
+            if result['lead_generated']:
+                # Extract lead data from conversation log
+                lead_data = None
+                for msg in result['conversation_log']:
+                    if msg.get('is_lead_generated'):
+                        lead_data = {
+                            'name': persona['name'],
+                            'email': persona['email'],
+                            'summary': f"Lead generated during test for {persona['name']}"
+                        }
+                        break
+                
+                if lead_data:
+                    self.db.add_test_lead(
+                        test_run_id=test_run_id,
+                        name=lead_data['name'],
+                        email=lead_data['email'],
+                        summary=lead_data['summary'],
+                        hubspot_status='test_generated'
+                    )
             
             # Update test run with results
             self.db.update_test_run_result(
                 test_run_id=test_run_id,
-                success=result['success'],
+                success=result['lead_generated'],  # Use lead_generated as success indicator
                 lead_generated=result['lead_generated'],
                 total_messages=result['total_messages'],
                 conversation_duration=result['conversation_duration_seconds']
@@ -116,11 +128,11 @@ class TestSuite:
                 result = self.run_scenario(scenario_name)
                 results[scenario_name] = result
                 
-                if result['success']:
+                if result['lead_generated']:
                     total_success += 1
                 total_runs += 1
                     
-                logger.info(f"Scenario {scenario_name}: {'SUCCESS' if result['success'] else 'FAILED'}")
+                logger.info(f"Scenario {scenario_name}: {'SUCCESS' if result['lead_generated'] else 'FAILED'}")
                 
                 # Add delay between scenarios
                 time.sleep(2)
@@ -294,7 +306,7 @@ def main():
         else:
             result = test_suite.run_scenario(args.scenario)
             print(f"\n=== Test Result: {args.scenario} ===")
-            print(f"Success: {'✓' if result['success'] else '✗'}")
+            print(f"Success: {'✓' if result['lead_generated'] else '✗'}")
             print(f"Lead Generated: {'✓' if result['lead_generated'] else '✗'}")
             print(f"Total Messages: {result['total_messages']}")
             print(f"Duration: {result['conversation_duration_seconds']}s")
