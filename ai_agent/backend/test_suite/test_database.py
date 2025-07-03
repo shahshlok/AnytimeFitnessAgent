@@ -329,3 +329,156 @@ class TestDatabase:
             raise
         finally:
             session.close()
+    
+    def create_conversation_summary(self, test_run_id: int, conversation_type: str, 
+                                  summary: str, tokens_used: int, generation_time_ms: int) -> int:
+        """Create a new conversation summary"""
+        from .test_models import TestConversationSummary
+        
+        session = self.get_session()
+        try:
+            summary_obj = TestConversationSummary(
+                test_run_id=test_run_id,
+                conversation_type=conversation_type,
+                summary=summary,
+                tokens_used=tokens_used,
+                generation_time_ms=generation_time_ms
+            )
+            session.add(summary_obj)
+            session.commit()
+            session.refresh(summary_obj)
+            
+            summary_id = summary_obj.id
+            logger.info(f"Created conversation summary {summary_id} for test run {test_run_id}")
+            return summary_id
+            
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Failed to create conversation summary: {e}")
+            raise
+        finally:
+            session.close()
+    
+    def get_conversation_summary(self, test_run_id: int) -> Optional[Dict]:
+        """Get summary for a specific test run"""
+        from .test_models import TestConversationSummary
+        
+        session = self.get_session()
+        try:
+            summary = session.query(TestConversationSummary).filter(
+                TestConversationSummary.test_run_id == test_run_id
+            ).first()
+            
+            if summary:
+                return {
+                    'id': summary.id,
+                    'test_run_id': summary.test_run_id,
+                    'conversation_type': summary.conversation_type,
+                    'summary': summary.summary,
+                    'created_at': summary.created_at,
+                    'model_used': summary.model_used,
+                    'tokens_used': summary.tokens_used,
+                    'generation_time_ms': summary.generation_time_ms
+                }
+            return None
+            
+        except Exception as e:
+            logger.error(f"Failed to get conversation summary: {e}")
+            raise
+        finally:
+            session.close()
+    
+    def get_summaries_by_type(self, conversation_type: str) -> List[Dict]:
+        """Get all summaries for a specific conversation type"""
+        from .test_models import TestConversationSummary, TestRun
+        
+        session = self.get_session()
+        try:
+            summaries = session.query(TestConversationSummary, TestRun).join(
+                TestRun, TestConversationSummary.test_run_id == TestRun.id
+            ).filter(
+                TestConversationSummary.conversation_type == conversation_type
+            ).order_by(TestConversationSummary.created_at.desc()).all()
+            
+            return [
+                {
+                    'id': summary.id,
+                    'test_run_id': summary.test_run_id,
+                    'conversation_type': summary.conversation_type,
+                    'summary': summary.summary,
+                    'created_at': summary.created_at,
+                    'model_used': summary.model_used,
+                    'tokens_used': summary.tokens_used,
+                    'generation_time_ms': summary.generation_time_ms,
+                    'test_run': {
+                        'scenario_name': test_run.scenario_name,
+                        'timestamp': test_run.timestamp,
+                        'success': test_run.success,
+                        'lead_generated': test_run.lead_generated
+                    }
+                } for summary, test_run in summaries
+            ]
+            
+        except Exception as e:
+            logger.error(f"Failed to get summaries by type: {e}")
+            raise
+        finally:
+            session.close()
+    
+    def get_recent_summaries(self, limit: int = 10) -> List[Dict]:
+        """Get recent summaries with test run details"""
+        from .test_models import TestConversationSummary, TestRun
+        
+        session = self.get_session()
+        try:
+            summaries = session.query(TestConversationSummary, TestRun).join(
+                TestRun, TestConversationSummary.test_run_id == TestRun.id
+            ).order_by(TestConversationSummary.created_at.desc()).limit(limit).all()
+            
+            return [
+                {
+                    'id': summary.id,
+                    'test_run_id': summary.test_run_id,
+                    'conversation_type': summary.conversation_type,
+                    'summary': summary.summary,
+                    'created_at': summary.created_at,
+                    'model_used': summary.model_used,
+                    'tokens_used': summary.tokens_used,
+                    'generation_time_ms': summary.generation_time_ms,
+                    'test_run': {
+                        'scenario_name': test_run.scenario_name,
+                        'timestamp': test_run.timestamp,
+                        'success': test_run.success,
+                        'lead_generated': test_run.lead_generated,
+                        'total_messages': test_run.total_messages,
+                        'conversation_duration_seconds': test_run.conversation_duration_seconds
+                    }
+                } for summary, test_run in summaries
+            ]
+            
+        except Exception as e:
+            logger.error(f"Failed to get recent summaries: {e}")
+            raise
+        finally:
+            session.close()
+    
+    def get_test_runs_without_summaries(self, limit: int = 10) -> List[int]:
+        """Get test run IDs that don't have summaries yet"""
+        from .test_models import TestRun, TestConversationSummary
+        
+        session = self.get_session()
+        try:
+            # Find test runs that don't have associated summaries
+            runs_without_summaries = session.query(TestRun.id).outerjoin(
+                TestConversationSummary, TestRun.id == TestConversationSummary.test_run_id
+            ).filter(
+                TestConversationSummary.id.is_(None)  # Summarize all runs, not just successful ones
+            ).order_by(TestRun.timestamp.desc()).limit(limit).all()
+            
+            return [run_id[0] for run_id in runs_without_summaries]
+            
+        except Exception as e:
+            logger.error(f"Failed to get test runs without summaries: {e}")
+            raise
+        finally:
+            session.close()

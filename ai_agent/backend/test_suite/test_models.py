@@ -25,6 +25,7 @@ class TestRun(TestBase):
     # One-to-many relationships
     messages = relationship("TestMessage", back_populates="test_run", cascade="all, delete-orphan")
     leads = relationship("TestLead", back_populates="test_run", cascade="all, delete-orphan")
+    conversation_summary = relationship("TestConversationSummary", back_populates="test_run", uselist=False, cascade="all, delete-orphan")
 
 class TestMessage(TestBase):
     __tablename__ = "test_messages"
@@ -53,3 +54,18 @@ class TestLead(TestBase):
     
     # Many-to-one relationship with test run
     test_run = relationship("TestRun", back_populates="leads")
+
+class TestConversationSummary(TestBase):
+    __tablename__ = "test_conversation_summaries"
+    
+    id = Column(BigInteger, primary_key=True, index=True)
+    test_run_id = Column(BigInteger, ForeignKey("test_runs.id"), nullable=False)
+    conversation_type = Column(String(255), nullable=False)
+    summary = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=func.now())
+    model_used = Column(String(100), default="gpt-4.1-nano")
+    tokens_used = Column(Integer, nullable=True)
+    generation_time_ms = Column(Integer, nullable=True)
+    
+    # Many-to-one relationship with test run
+    test_run = relationship("TestRun", back_populates="conversation_summary")
