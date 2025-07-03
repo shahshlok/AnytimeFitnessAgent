@@ -5,7 +5,7 @@ import json
 import logging
 from typing import Dict
 from openai import OpenAI
-from .config import OPENAI_API_KEY, SIMULATED_USER_MODEL
+from .config import OPENAI_API_KEY
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +14,6 @@ class SimulatedUser:
     def __init__(self, persona: Dict):
         self.persona = persona
         self.conversation_history = []
-        self.model = SIMULATED_USER_MODEL
         self.goal_achieved = False
         self.is_first_turn = True
         

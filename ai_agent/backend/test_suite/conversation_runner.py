@@ -7,7 +7,7 @@ import time
 import uuid
 import logging
 from typing import Dict, List, Tuple, Optional
-from .config import API_BASE_URL, MAX_CONVERSATION_MESSAGES, MESSAGE_DELAY_SECONDS
+from .config import API_BASE_URL, MAX_CONVERSATION_MESSAGES
 from .simulated_user import SimulatedUser
 
 logger = logging.getLogger(__name__)
@@ -77,7 +77,7 @@ class ConversationRunner:
                 # The conversation will end when lead generation is detected or max messages reached
                 
             # Add delay to simulate human response time
-            time.sleep(MESSAGE_DELAY_SECONDS)
+            
         
         end_time = time.time()
         conversation_duration = int(end_time - start_time)

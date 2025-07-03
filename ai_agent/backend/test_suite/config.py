@@ -16,8 +16,8 @@ TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL", "postgresql://anytime_fitness
 
 # Test Configuration
 MAX_CONVERSATION_MESSAGES = 20  # Safety limit to prevent infinite loops
-MESSAGE_DELAY_SECONDS = 1  # Delay between messages to simulate human behavior
-SIMULATED_USER_MODEL = "gpt-4.1-mini"
+# MESSAGE_DELAY_SECONDS = 1  # Delay between messages to simulate human behavior
+# SIMULATED_USER_MODEL = "gpt-4.1-mini"
 
 # Test Scenarios
 TEST_SCENARIOS = {
