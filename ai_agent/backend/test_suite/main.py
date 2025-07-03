@@ -7,7 +7,6 @@ import sys
 import time
 from datetime import datetime
 
-from .config import TEST_SCENARIOS
 from .test_scenarios import get_scenario_persona, get_all_scenarios, validate_scenario
 from .conversation_runner import ConversationRunner
 from .test_database import TestDatabase
@@ -123,7 +122,9 @@ class TestSuite:
         total_success = 0
         total_runs = 0
         
-        for scenario_name in TEST_SCENARIOS.keys():
+        # Get all available scenarios dynamically
+        all_scenarios = get_all_scenarios()
+        for scenario_name in all_scenarios.keys():
             try:
                 result = self.run_scenario(scenario_name)
                 results[scenario_name] = result
@@ -237,10 +238,13 @@ class TestSuite:
             print(f"Error retrieving summaries by type: {e}")
 
 def main():
+    # Get available scenarios dynamically for choices
+    available_scenarios = list(get_all_scenarios().keys()) + ['all']
+    
     parser = argparse.ArgumentParser(description='Anytime Fitness AI Chatbot Test Suite')
     parser.add_argument('--scenario', '-s', 
-                       choices=list(TEST_SCENARIOS.keys()) + ['all'],
-                       help='Test scenario to run (or "all" for all scenarios)')
+                       choices=available_scenarios,
+                       help=f'Test scenario to run (or "all" for all scenarios). Available: {", ".join(list(get_all_scenarios().keys()))}')
     parser.add_argument('--list-scenarios', '-l', action='store_true',
                        help='List available test scenarios')
     parser.add_argument('--recent-results', '-r', type=int, default=10,
@@ -286,8 +290,12 @@ def main():
     if args.list_scenarios:
         scenarios = get_all_scenarios()
         print("\n=== Available Test Scenarios ===")
+        print(f"{'Scenario Name':<30} {'Description'}")
+        print("-" * 80)
         for name, persona in scenarios.items():
-            print(f"{name:25} - {persona['scenario_description']}")
+            print(f"{name:<30} {persona['scenario_description']}")
+        print(f"\nTotal scenarios available: {len(scenarios)}")
+        print("\nUsage: python -m test_suite.main --scenario <scenario_name>")
         return
     
     # Handle recent results
