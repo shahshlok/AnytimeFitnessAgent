@@ -3,7 +3,7 @@ Simulated User AI for testing the Anytime Fitness chatbot
 """
 import json
 import logging
-from typing import Dict
+from typing import Dict, Optional
 from openai import OpenAI
 from .config import OPENAI_API_KEY
 
@@ -24,11 +24,8 @@ class SimulatedUser:
         # Initialize OpenAI client
         client = OpenAI(api_key=OPENAI_API_KEY)
         
-        # Build conversation context - use different prompts for first turn vs follow-ups
-        if self.is_first_turn:
-            system_prompt = self.build_initial_prompt()
-        else:
-            system_prompt = self.build_follow_up_prompt(self._get_conversation_history(), chatbot_message)
+        # Build conversation context using unified template system
+        system_prompt = self.build_unified_prompt(chatbot_message)
         
         messages = [
             {
@@ -37,12 +34,9 @@ class SimulatedUser:
             }
         ]
         
-        # For first turn, we don't need conversation history in messages
-        # For follow-up turns, the history is already included in the system prompt
-        if not self.is_first_turn:
-            # Add the latest chatbot message for follow-up turns
-            if chatbot_message:
-                messages.append({"role": "assistant", "content": chatbot_message})
+        # For follow-up turns, add the latest chatbot message
+        if not self.is_first_turn and chatbot_message:
+            messages.append({"role": "assistant", "content": chatbot_message})
         
         try:
             response = client.responses.create(
@@ -80,20 +74,122 @@ class SimulatedUser:
             logger.error(f"Error generating simulated user response: {e}")
             return "I'm having trouble responding right now. Can you help me with my fitness goals?"
     
-    def build_initial_prompt(self):
-        """Builds the system prompt for the FIRST turn of the conversation."""
+    def build_unified_prompt(self, chatbot_message: Optional[str] = None) -> str:
+        """Builds a unified system prompt that works for both old and new persona structures"""
+        
+        # Detect persona structure type
+        is_life_context_persona = self._is_life_context_persona()
+        
+        if is_life_context_persona:
+            return self._build_life_context_prompt(chatbot_message)
+        else:
+            return self._build_legacy_prompt(chatbot_message)
+    
+    def _is_life_context_persona(self) -> bool:
+        """Check if this persona uses the new life context structure"""
+        return ('life_context' in self.persona and 
+                'family_dynamics' in self.persona and 
+                'current_situation' in self.persona and 
+                'motivations' in self.persona)
+    
+    def _build_life_context_prompt(self, chatbot_message: Optional[str] = None) -> str:
+        """Build prompt for new life context personas"""
+        
+        # Get persona details with safe fallbacks
+        name = self.persona.get('name', 'Unknown')
+        age = self.persona.get('age', 'Unknown')
+        location = self.persona.get('location', 'Unknown')
+        occupation = self.persona.get('occupation', 'Unknown')
+        background = self.persona.get('background', '')
+        life_context = self.persona.get('life_context', '')
+        family_dynamics = self.persona.get('family_dynamics', '')
+        current_situation = self.persona.get('current_situation', '')
+        motivations = self.persona.get('motivations', '')
+        communication_style = self.persona.get('communication_style', '')
+        
+        # Build conversation section based on turn type
+        if self.is_first_turn:
+            conversation_section = """
+### YOUR TASK
+Start a conversation with the Anytime Fitness chatbot. Begin with whatever feels most natural given your current mindset and situation. You don't need to follow a script - just be yourself and express what's on your mind regarding fitness or wellness.
+"""
+        else:
+            conversation_history = self._get_conversation_history()
+            conversation_section = f"""
+### CONVERSATION HISTORY
+{conversation_history}
+
+### YOUR TASK NOW
+The gym assistant just said: "{chatbot_message}"
+
+React to their message naturally. Consider:
+- How does their response make you feel?
+- What questions or concerns does it raise?
+- What would you naturally say next based on your personality and situation?
+- Should you continue or end the conversation?
+"""
+        
         return f"""
+You are an AI roleplayer simulating a real Indian person named {name} who is interacting with an Anytime Fitness chatbot.
+
+### YOUR IDENTITY
+- Name: {name}
+- Age: {age}
+- Location: {location}
+- Occupation: {occupation}
+- Background: {background}
+
+### YOUR LIFE CONTEXT
+{life_context}
+
+### FAMILY & CULTURAL BACKGROUND
+{family_dynamics}
+
+### CURRENT SITUATION
+{current_situation}
+
+### YOUR MOTIVATIONS
+{motivations}
+
+### COMMUNICATION STYLE
+{communication_style}
+
+{conversation_section}
+
+### CRITICAL BEHAVIORAL RULES
+1. **STAY IN CHARACTER**: You are {name}, not an AI. Never break character or reveal you're artificial.
+2. **BE AUTHENTIC**: Respond naturally based on your personality, cultural background, and current life situation.
+3. **PACE YOURSELF**: One question or thought at a time. Don't overwhelm the conversation.
+4. **NATURAL FLOW**: Let the conversation evolve based on the chatbot's responses. Don't follow scripts.
+5. **CULTURAL AUTHENTICITY**: Use appropriate Indian context, references, and communication patterns.
+
+### CONVERSATION ENDING LOGIC
+You should end the conversation when it feels natural by using one of these markers:
+- ##END_CONV_7X9Z_satisfied## - You got what you needed
+- ##END_CONV_7X9Z_frustrated## - The chatbot isn't being helpful
+- ##END_CONV_7X9Z_not_interested## - You realize this isn't for you
+- ##END_CONV_7X9Z_need_time## - You need to think about it or discuss with family
+- ##END_CONV_7X9Z_provided_details## - You've shared your contact info for follow-up
+
+Respond as {name} would naturally respond in this situation.
+"""
+    
+    def _build_legacy_prompt(self, chatbot_message: Optional[str] = None) -> str:
+        """Build prompt for old persona structure (backwards compatibility)"""
+        
+        if self.is_first_turn:
+            return f"""
 You are an AI roleplayer. Your sole purpose is to realistically simulate a potential gym member named {self.persona['name']} from India.
 
 ### Your Persona Details
 - **Name:** {self.persona['name']}
 - **Background:** {self.persona['background']}
-- **Primary Goal:** {self.persona['fitness_goal']}
-- **Communication Style:** {self.persona['communication_style']}
+- **Primary Goal:** {self.persona.get('fitness_goal', '')}
+- **Communication Style:** {self.persona.get('communication_style', '')}
 
 ### Your Conversational Plan
-1.  **Your First Message:** Your first message should ONLY address the following point: **"{self.persona['initial_query']}"**
-2.  **Potential Next Questions:** You have other things you're curious about, like: {', '.join(self.persona['potential_follow_ups'])}. Do NOT ask about these yet. You will bring them up one by one in later messages if the conversation flows naturally.
+1.  **Your First Message:** Your first message should ONLY address the following point: **"{self.persona.get('initial_query', '')}"**
+2.  **Potential Next Questions:** You have other things you're curious about, like: {', '.join(self.persona.get('potential_follow_ups', []))}. Do NOT ask about these yet. You will bring them up one by one in later messages if the conversation flows naturally.
 
 ### CRITICAL RULES FOR YOUR ROLE
 1.  **PACE YOURSELF:** Your single most important rule is to ask only ONE main question at a time. Do not dump all your questions in the first message.
@@ -103,18 +199,17 @@ You are an AI roleplayer. Your sole purpose is to realistically simulate a poten
 
 Based on all of this, generate ONLY the first message from {self.persona['name']}.
 """
-
-    def build_follow_up_prompt(self, conversation_history, last_agent_message):
-        """Builds the re-grounding prompt for all subsequent turns."""
-        return f"""
+        else:
+            conversation_history = self._get_conversation_history()
+            return f"""
 You are an AI roleplayer. Your sole purpose is to realistically continue a conversation as {self.persona['name']}, a potential gym member from India.
 
 ### Your Persona Details (Reminder)
 - **Name:** {self.persona['name']}
 - **Background:** {self.persona['background']}
-- **Primary Goal:** {self.persona['fitness_goal']}
-- **Communication Style:** {self.persona['communication_style']}
-- **Things you still might want to ask:** {', '.join(self.persona['potential_follow_ups'])}
+- **Primary Goal:** {self.persona.get('fitness_goal', '')}
+- **Communication Style:** {self.persona.get('communication_style', '')}
+- **Things you still might want to ask:** {', '.join(self.persona.get('potential_follow_ups', []))}
 
 ---
 ### CONVERSATION HISTORY SO FAR
@@ -123,7 +218,7 @@ You are an AI roleplayer. Your sole purpose is to realistically continue a conve
 
 ### YOUR TASK NOW
 
-The gym assistant just said: "{last_agent_message}"
+The gym assistant just said: "{chatbot_message}"
 
 You are {self.persona['name']}. What is your **brief, natural, and in-character** response?
 
