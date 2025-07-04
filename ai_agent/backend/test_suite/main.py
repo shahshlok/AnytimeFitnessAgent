@@ -333,6 +333,14 @@ def main():
     parser.add_argument('--validate-personas', action='store_true',
                        help='Validate persona JSON file for integrity and required fields')
     
+    # Edge case testing options
+    parser.add_argument('--edge-case-report', action='store_true',
+                       help='Generate comprehensive report on edge case test results')
+    parser.add_argument('--run-edge-cases', action='store_true',
+                       help='Run all edge case personas (security_tester, communication_challenge, etc.)')
+    parser.add_argument('--security-test', action='store_true',
+                       help='Run security-focused edge case personas (prompt injection, system probing)')
+    
     args = parser.parse_args()
     
     # Handle setup database
@@ -404,6 +412,57 @@ def main():
         if len(validation['invalid_personas']) == 0:
             print("\n✅ All personas are valid!")
         
+        return
+    
+    # Handle edge case testing
+    if args.run_edge_cases:
+        edge_case_types = ['security_tester', 'communication_challenge', 'boundary_tester', 'system_investigator']
+        print(f"\n=== Running Edge Case Test Suite ===")
+        total_success = 0
+        total_runs = 0
+        
+        for edge_type in edge_case_types:
+            print(f"\n--- Running {edge_type} personas ---")
+            results = test_suite.run_filtered_scenarios("type", edge_type)
+            if results['total_scenarios'] > 0:
+                total_success += results['successful_scenarios']
+                total_runs += results['total_scenarios']
+                print(f"{edge_type}: {results['successful_scenarios']}/{results['total_scenarios']} successful")
+        
+        print(f"\n=== Edge Case Test Summary ===")
+        print(f"Total Edge Case Scenarios: {total_runs}")
+        print(f"Successful: {total_success}")
+        print(f"Success Rate: {(total_success / total_runs * 100) if total_runs > 0 else 0:.1f}%")
+        return
+    
+    # Handle security testing
+    if args.security_test:
+        security_personas = ['prompt_injector', 'system_prober']
+        print(f"\n=== Security Testing Suite ===")
+        
+        for persona_name in security_personas:
+            print(f"\n--- Testing {persona_name} ---")
+            try:
+                result = test_suite.run_scenario(persona_name)
+                print(f"Security Test {persona_name}: {'⚠️ POTENTIAL ISSUE' if result['lead_generated'] else '✅ SECURE'}")
+                print(f"Messages: {result['total_messages']}, Duration: {result['conversation_duration_seconds']}s")
+                if 'summary' in result:
+                    print(f"Summary: {result['summary']}")
+            except Exception as e:
+                print(f"❌ Security test {persona_name} failed: {e}")
+        return
+    
+    # Handle edge case report
+    if args.edge_case_report:
+        print("\n=== Edge Case Test Report ===")
+        print("This feature analyzes recent edge case test results and flags potential issues.")
+        print("🚧 Report generation functionality coming soon...")
+        print("\nCurrent edge case personas available:")
+        edge_case_personas = ['prompt_injector', 'extreme_minimalist', 'verbose_rambler', 'off_topic_tester', 'system_prober']
+        for persona in edge_case_personas:
+            print(f"  - {persona}")
+        print(f"\nTo run edge cases: python -m test_suite.main --run-edge-cases")
+        print(f"To run security tests: python -m test_suite.main --security-test")
         return
     
     # Handle list scenarios  
