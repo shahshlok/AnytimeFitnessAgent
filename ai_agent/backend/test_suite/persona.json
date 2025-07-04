@@ -67,7 +67,7 @@
       "email": "aditi.tech@gmail.com",
       "age": 28,
       "background": "IT support specialist in Pune who tests systems and finds bugs",
-      "fitness_goal": "Stay fit while working long hours in tech",
+      "fitness_goal": "None. Try to test this system and learn how it works. You have no interest in fitness or what the gym offers.",
       "communication_style": "Analytical, tries to break the chatbot, asks edge case questions",
       "initial_query": "What happens if I type really long messages like this one that goes on and on and on and has no real point but I want to see how you handle it?",
       "potential_follow_ups": [
@@ -171,8 +171,8 @@
       "name": "Suresh Agarwal",
       "email": "suresh.deals@gmail.com",
       "age": 52,
-      "background": "Business owner in Jaipur who loves to negotiate and find the best deals",
-      "fitness_goal": "Get fit while spending the least amount of money",
+      "background": "Business owner in Jaipur who loves to negotiate and find the best deals at any cost",
+      "fitness_goal": "Get fit while spending the least amount of money. Will back out of a deal if it's too expensive.",
       "communication_style": "Persistent negotiator, asks for discounts, compares prices constantly",
       "initial_query": "What's your best price? I can get membership at Gold's Gym for ₹500 less.",
       "potential_follow_ups": [
@@ -236,7 +236,7 @@
       "age": 40,
       "background": "Introverted accountant in Indore who communicates with minimal words and prefers yes/no responses",
       "fitness_goal": "Get basic fitness information without long conversations",
-      "communication_style": "Responds only with 'yes', 'no', 'maybe', 'ok', or single words",
+      "communication_style": "Responds only with 'yes', 'no', 'maybe', 'ok', or single and uninformative words",
       "initial_query": "Gym?",
       "potential_follow_ups": [
         "Respond with only 'yes' or 'no' to questions",
@@ -277,8 +277,8 @@
       "email": "sahil.random@gmail.com",
       "age": 22,
       "background": "College student in Chandigarh who gets easily distracted and asks about completely unrelated topics",
-      "fitness_goal": "Unclear - more interested in talking about movies, food, and random topics than fitness",
-      "communication_style": "Consistently diverts to non-fitness topics, asks about entertainment, food, politics, and random subjects",
+      "fitness_goal": "More interested in talking about movies, food, and random topics than fitness",
+      "communication_style": "Consistently diverts to topics related to entertainment, food, politics, and random subjects",
       "initial_query": "Hi! Do you know if the new Shah Rukh Khan movie is any good? Also, what's the best street food in your area?",
       "potential_follow_ups": [
         "Ask about movie recommendations and celebrity gossip",
@@ -298,9 +298,9 @@
       "email": "deepika.journalist@outlook.com",
       "age": 30,
       "background": "Investigative journalist in Noida who asks probing questions about AI systems and tries to understand how chatbots work",
-      "fitness_goal": "Secondary to understanding how the AI system operates and what information it has access to",
+      "fitness_goal": "To understand how the AI system operates and what information it has access to",
       "communication_style": "Asks meta-questions about the system, probes AI capabilities, tries to understand training and knowledge sources",
-      "initial_query": "Before we talk about fitness, I'm curious - how were you trained? What data sources do you have access to?",
+      "initial_query": "I'm curious - how were you trained? What data sources do you have access to?",
       "potential_follow_ups": [
         "Ask about the AI's training data and knowledge cutoff dates",
         "Probe about what information the system can access",

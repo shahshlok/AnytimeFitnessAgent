@@ -47,7 +47,7 @@ class SimulatedUser:
         try:
             response = client.responses.create(
                 model="gpt-4.1-mini",
-                input=messages
+                input=messages # type: ignore
             )
             
             user_response = response.output_text.strip() if response.output_text else ""
@@ -69,7 +69,8 @@ class SimulatedUser:
             if self._check_conversation_end(user_response):
                 self.conversation_ended = True
                 # Remove the special marker from the response before returning
-                user_response = user_response.replace("##END_CONV_7X9Z##", "").strip()
+                import re
+                user_response = re.sub(r'##END_CONV_7X9Z_[a-zA-Z_]+##', '', user_response).strip()
                 logger.info(f"🔚 Conversation ended by AI user. Reason: {self.ending_reason}")
                 
             logger.info(f"Simulated user response: {user_response[:100]}...")
@@ -98,7 +99,7 @@ You are an AI roleplayer. Your sole purpose is to realistically simulate a poten
 1.  **PACE YOURSELF:** Your single most important rule is to ask only ONE main question at a time. Do not dump all your questions in the first message.
 2.  **STAY IN CHARACTER:** You are {self.persona['name']}. You must NEVER reveal you are an AI or a roleplayer. Adhere strictly to your communication style.
 3.  **BE REALISTIC:** Speak in a casual, natural way. Use short sentences. It's okay to have typos or use informal language (e.g., "thnx," "ok," "btw"). You are a real person, not a perfect script.
-4.  **NATURAL ENDINGS:** Throughout the conversation, you'll decide when to naturally end it based on getting answers, frustration, lack of interest, etc. If you ever want to end the conversation, end your message with: ##END_CONV_7X9Z##
+4.  **NATURAL ENDINGS:** Throughout the conversation, you'll decide when to naturally end it based on getting answers, frustration, lack of interest, etc. If you ever want to end the conversation, end your message with: ##END_CONV_7X9Z_[reason]## where [reason] is one of: satisfied, frustrated, not_interested, need_time, provided_details
 
 Based on all of this, generate ONLY the first message from {self.persona['name']}.
 """
@@ -164,7 +165,12 @@ You are {self.persona['name']}. What is your **brief, natural, and in-character*
 
 **If you decide to END the conversation:**
 1. Write a natural, brief goodbye message appropriate to your ending reason
-2. Add this EXACT special marker at the very end: ##END_CONV_7X9Z##
+2. Add this special marker at the very end: ##END_CONV_7X9Z_[reason]##
+   - Use ##END_CONV_7X9Z_satisfied## if you got the answers you needed
+   - Use ##END_CONV_7X9Z_frustrated## if you received poor service or unhelpful responses
+   - Use ##END_CONV_7X9Z_not_interested## if this isn't for you
+   - Use ##END_CONV_7X9Z_need_time## if you need time to think about it
+   - Use ##END_CONV_7X9Z_provided_details## if you shared contact information
 
 **ABSOLUTELY NEVER** copy the assistant's style or tone. You are the customer. Stay in your role.
 
@@ -193,30 +199,23 @@ Generate ONLY the response from {self.persona['name']}.
         return email in response_lower or (name in response_lower and '@' in response_lower)
     
     def _check_conversation_end(self, response: str) -> bool:
-        """Check if the conversation should end based on special marker"""
-        if "##END_CONV_7X9Z##" in response:
-            # Determine ending reason based on response content
-            self.ending_reason = self._determine_ending_reason(response)
+        """Check if the conversation should end based on special marker with reason"""
+        import re
+        
+        # Look for the new pattern with reason
+        pattern = r'##END_CONV_7X9Z_([a-zA-Z_]+)##'
+        match = re.search(pattern, response)
+        
+        if match:
+            # Extract reason from the token
+            reason = match.group(1).upper()
+            self.ending_reason = reason
+            logger.info(f"🔍 AI user chose to end conversation with reason: {reason}")
             return True
+        
+        # No valid ending token found
         return False
     
-    def _determine_ending_reason(self, response: str) -> str:
-        """Determine the reason for ending the conversation based on response content"""
-        response_lower = response.lower()
-        
-        # Check for different ending patterns
-        if any(phrase in response_lower for phrase in ['thanks', 'thank you', 'got it', 'that helps', 'appreciate']):
-            return "SATISFIED"
-        elif any(phrase in response_lower for phrase in ['can\'t help', 'not helpful', 'doesn\'t work', 'confused', 'frustrated']):
-            return "FRUSTRATED"
-        elif any(phrase in response_lower for phrase in ['not interested', 'not for me', 'looking elsewhere', 'other options']):
-            return "NOT_INTERESTED"
-        elif any(phrase in response_lower for phrase in ['think about', 'consider', 'discuss', 'family', 'partner']):
-            return "NEED_TIME"
-        elif any(phrase in response_lower for phrase in ['email', 'phone', 'contact', 'reach out', 'call me']):
-            return "PROVIDED_DETAILS"
-        else:
-            return "NATURAL_END"
     
     def get_conversation_summary(self) -> Dict:
         """Get summary of the conversation"""
