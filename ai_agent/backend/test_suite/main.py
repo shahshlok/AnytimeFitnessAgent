@@ -7,7 +7,10 @@ import sys
 import time
 from datetime import datetime
 
-from .test_scenarios import get_scenario_persona, get_all_scenarios, validate_scenario
+from .persona_manager import (
+    get_scenario_persona, get_all_scenarios, validate_scenario,
+    get_personas_by_type, get_personas_by_outcome, get_persona_stats, validate_personas
+)
 from .conversation_runner import ConversationRunner
 from .test_database import TestDatabase
 from .conversation_summarizer import ConversationSummarizer
@@ -244,6 +247,58 @@ class TestSuite:
                       
         except Exception as e:
             print(f"Error retrieving summaries by type: {e}")
+    
+    def run_filtered_scenarios(self, filter_type: str, filter_value: str) -> dict:
+        """Run scenarios based on filtering criteria"""
+        logger.info(f"Running filtered scenarios: {filter_type}={filter_value}")
+        
+        # Get filtered personas
+        if filter_type == "type":
+            filtered_personas = get_personas_by_type(filter_value)
+        elif filter_type == "outcome":
+            filtered_personas = get_personas_by_outcome(filter_value)
+        else:
+            raise ValueError(f"Unsupported filter type: {filter_type}")
+        
+        if not filtered_personas:
+            print(f"No personas found for {filter_type}='{filter_value}'")
+            return {"total_scenarios": 0, "successful_scenarios": 0, "success_rate": 0, "results": {}}
+        
+        print(f"\nRunning {len(filtered_personas)} scenarios with {filter_type}='{filter_value}'")
+        
+        results = {}
+        total_success = 0
+        total_runs = 0
+        
+        for scenario_name in filtered_personas.keys():
+            try:
+                result = self.run_scenario(scenario_name)
+                results[scenario_name] = result
+                
+                if result['lead_generated']:
+                    total_success += 1
+                total_runs += 1
+                    
+                logger.info(f"Scenario {scenario_name}: {'SUCCESS' if result['lead_generated'] else 'FAILED'}")
+                
+                # Add delay between scenarios
+                time.sleep(2)
+                
+            except Exception as e:
+                logger.error(f"Failed to run scenario {scenario_name}: {e}")
+                results[scenario_name] = {'error': str(e), 'success': False}
+                total_runs += 1
+        
+        summary = {
+            'total_scenarios': total_runs,
+            'successful_scenarios': total_success,
+            'success_rate': (total_success / total_runs * 100) if total_runs > 0 else 0,
+            'results': results,
+            'filter_applied': f"{filter_type}={filter_value}"
+        }
+        
+        logger.info(f"Filtered scenarios completed. Success rate: {summary['success_rate']:.1f}%")
+        return summary
 
 def main():
     # Get available scenarios dynamically for choices
@@ -267,6 +322,16 @@ def main():
                        help='View summaries for a specific conversation type')
     parser.add_argument('--limit', type=int, default=10,
                        help='Limit for summary queries (default: 10)')
+    
+    # Enhanced JSON-based persona management options
+    parser.add_argument('--filter-by-type', type=str,
+                       help='Run scenarios filtered by persona type (e.g., lead, social, edge_case)')
+    parser.add_argument('--filter-by-outcome', type=str,
+                       help='Run scenarios filtered by expected outcome (e.g., likely_conversion, boundary_testing)')
+    parser.add_argument('--persona-stats', action='store_true',
+                       help='Show comprehensive persona statistics and distribution')
+    parser.add_argument('--validate-personas', action='store_true',
+                       help='Validate persona JSON file for integrity and required fields')
     
     args = parser.parse_args()
     
@@ -294,6 +359,53 @@ def main():
         test_suite.show_summaries_by_type(args.summaries_by_type)
         return
     
+    # Handle persona statistics
+    if args.persona_stats:
+        stats = get_persona_stats()
+        print("\n=== Persona Statistics ===")
+        print(f"Total Personas: {stats['total_personas']}")
+        print(f"\nPersona Types:")
+        for ptype, count in stats['persona_types'].items():
+            print(f"  {ptype}: {count}")
+        print(f"\nExpected Outcomes:")
+        for outcome, count in stats['expected_outcomes'].items():
+            print(f"  {outcome}: {count}")
+        print(f"\nAge Distribution:")
+        for age_group, count in stats['age_distribution'].items():
+            print(f"  {age_group}: {count}")
+        print(f"\nConversation Lengths:")
+        for length, count in stats['conversation_lengths'].items():
+            print(f"  {length}: {count}")
+        print(f"\nCities Represented: {len(stats['cities_represented'])}")
+        for city in stats['cities_represented']:
+            print(f"  - {city}")
+        return
+    
+    # Handle persona validation
+    if args.validate_personas:
+        validation = validate_personas()
+        print("\n=== Persona Validation Results ===")
+        print(f"Total Validated: {validation['total_validated']}")
+        print(f"Valid Personas: {len(validation['valid_personas'])}")
+        print(f"Invalid Personas: {len(validation['invalid_personas'])}")
+        
+        if validation['invalid_personas']:
+            print("\n❌ Invalid Personas:")
+            for invalid in validation['invalid_personas']:
+                print(f"  - {invalid['name']}:")
+                for issue in invalid['issues']:
+                    print(f"    • {issue}")
+        
+        if validation['warnings']:
+            print("\n⚠️ Warnings:")
+            for warning in validation['warnings']:
+                print(f"  - {warning}")
+        
+        if len(validation['invalid_personas']) == 0:
+            print("\n✅ All personas are valid!")
+        
+        return
+    
     # Handle list scenarios  
     if args.list_scenarios:
         scenarios = get_all_scenarios()
@@ -304,6 +416,22 @@ def main():
             print(f"{name:<30} {persona['scenario_description']}")
         print(f"\nTotal scenarios available: {len(scenarios)}")
         print("\nUsage: python -m test_suite.main --scenario <scenario_name>")
+        return
+    
+    # Handle filtering options
+    if args.filter_by_type or args.filter_by_outcome:
+        if args.filter_by_type:
+            filter_type = "type"
+            filter_value = args.filter_by_type
+        else:
+            filter_type = "outcome"
+            filter_value = args.filter_by_outcome
+        
+        results = test_suite.run_filtered_scenarios(filter_type, filter_value)
+        print(f"\n=== Filtered Test Suite Summary ({results['filter_applied']}) ===")
+        print(f"Total Scenarios: {results['total_scenarios']}")
+        print(f"Successful: {results['successful_scenarios']}")
+        print(f"Success Rate: {results['success_rate']:.1f}%")
         return
     
     # Handle recent results
