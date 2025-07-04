@@ -144,35 +144,3 @@ class ConversationRunner:
         except Exception as e:
             logger.error(f"Error sending message to chatbot: {e}")
             return None, []
-    
-    def _extract_tool_calls_from_response(self, response_data: Dict) -> List[Dict]:
-        """Extract tool calls from chatbot response"""
-        # Note: This is a simplified extraction - in practice, you might need to 
-        # check the backend logs or response metadata for actual tool call information
-        tool_calls = []
-        
-        # For now, we'll detect lead generation by checking if the response mentions
-        # passing details to the team (indicating successful lead creation)
-        reply = response_data.get('reply', '').lower()
-        
-        # Simple heuristic to detect lead generation
-        lead_indicators = [
-            'passed your details',
-            'someone will be in touch',
-            'team will reach out',
-            'someone will contact you',
-            'we\'ll be in touch'
-        ]
-        
-        if any(indicator in reply for indicator in lead_indicators):
-            # This is a simplified detection - in production you'd want to check
-            # the actual backend logs or response metadata
-            tool_calls.append({
-                'tool': 'create_lead',
-                'arguments': {
-                    'detected_via': 'response_heuristic',
-                    'response_content': reply[:200]
-                }
-            })
-        
-        return tool_calls
