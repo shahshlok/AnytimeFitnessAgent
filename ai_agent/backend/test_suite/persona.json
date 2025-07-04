@@ -322,17 +322,103 @@
       "expected_outcome": "authentic_conversation_test",
       "conversation_length": "medium",
       "topics": ["independence", "arthritis_management", "safety_concerns", "loneliness", "aging_gracefully"]
+    },
+    "ambitious_franchise_prospect": {
+      "name": "Vikrant Malhotra",
+      "age": 38,
+      "location": "Gurgaon",
+      "occupation": "Business Consultant",
+      "background": "Successful business consultant looking to diversify into franchise investment with strong financial backing",
+      "life_context": "Runs profitable consulting firm for last 8 years. Has ₹2 crore liquid capital and looking for proven business model to expand portfolio. Researched fitness industry growth and sees huge potential in tier-2 cities. Wants to own multiple locations eventually.",
+      "family_dynamics": "Married with 10-year-old daughter. Wife supports business expansion but worried about time commitment. Parents proud of his success and encourage business growth. Extended family has successful business backgrounds.",
+      "current_situation": "Seriously evaluating Anytime Fitness franchise opportunity. Has shortlisted 3-4 cities for potential locations. Wants detailed ROI projections, territory rights, and corporate support structure. Ready to move fast if numbers make sense.",
+      "motivations": "Build scalable business empire, secure family's financial future, leverage fitness industry boom, prove business acumen in new sector, create passive income streams",
+      "communication_style": "Business-focused, asks detailed financial questions, wants concrete data and projections, professional but assertive, mentions investment readiness",
+      "email": "vikrant.malhotra.business@gmail.com",
+      "persona_type": "franchise_prospect",
+      "expected_outcome": "likely_conversion",
+      "conversation_length": "long",
+      "topics": ["franchise_investment", "roi_analysis", "territory_rights", "business_expansion", "financial_planning"]
+    },
+    "struggling_franchise_owner": {
+      "name": "Deepak Singh",
+      "age": 45,
+      "location": "Ludhiana",
+      "occupation": "Anytime Fitness Franchise Owner",
+      "background": "Owns Anytime Fitness franchise for 2 years but struggling with low membership and operational challenges",
+      "life_context": "Invested ₹80 lakhs in franchise 2 years ago expecting quick returns. Location in Ludhiana not performing as projected. Monthly expenses high, membership growth slow. Competing with 3 other gyms in area. Feeling stressed and questioning investment decision.",
+      "family_dynamics": "Joint family setup with elderly parents and wife. Used family savings and loan for franchise investment. Parents constantly worry about financial stress. Wife supports but suggests selling. Two teenage children need money for education.",
+      "current_situation": "Franchise breaking even but not profitable. Considering asking corporate for marketing support, location change, or exit options. Desperate for solutions to increase membership and revenue. Open about business struggles.",
+      "motivations": "Save existing investment, increase profitability, get corporate support, prove to family investment was right, avoid financial disaster, find practical solutions",
+      "communication_style": "Honest about struggles, asks for specific help and support, mentions financial pressures, seeks practical advice, slightly desperate tone",
+      "email": "deepak.singh.ludhiana@gmail.com",
+      "persona_type": "franchise_owner",
+      "expected_outcome": "support_seeking",
+      "conversation_length": "long",
+      "topics": ["franchise_struggles", "profitability_issues", "corporate_support", "operational_challenges", "financial_stress"]
+    },
+    "expansion_minded_franchisee": {
+      "name": "Pradeep Reddy",
+      "age": 42,
+      "location": "Hyderabad",
+      "occupation": "Multi-Unit Franchise Owner",
+      "background": "Successfully operates 2 Anytime Fitness locations in Hyderabad and wants to expand to 5 more locations across Telangana",
+      "life_context": "Opened first location 3 years ago, second location 18 months ago. Both profitable with 400+ members each. Proven track record of successful operations. Sees massive opportunity in expanding to tier-2 cities in Telangana before competition arrives.",
+      "family_dynamics": "Nuclear family with working wife and twin 12-year-old sons. Wife handles accounting for both locations. Family fully invested in franchise business success. Parents live separately but proud of business achievement.",
+      "current_situation": "Looking to secure territory rights for 5 additional locations. Has identified Warangal, Nizamabad, and Karimnagar as target cities. Needs information about multi-unit development agreements, territory protection, and corporate support for rapid expansion.",
+      "motivations": "Build regional fitness empire, capitalize on proven success model, secure territory before competitors, maximize earning potential, create legacy business for children",
+      "communication_style": "Confident and experienced, shares success metrics, asks strategic expansion questions, businesslike approach, mentions proven track record",
+      "email": "pradeep.reddy.multiunit@gmail.com",
+      "persona_type": "franchise_owner",
+      "expected_outcome": "business_expansion",
+      "conversation_length": "medium",
+      "topics": ["multi_unit_development", "territory_expansion", "regional_growth", "business_scaling", "strategic_planning"]
+    },
+    "disgruntled_ex_franchisee": {
+      "name": "Amit Tiwari",
+      "age": 52,
+      "location": "Kanpur",
+      "occupation": "Former Franchise Owner",
+      "background": "Operated Anytime Fitness franchise for 18 months before exiting due to poor performance and disputes with corporate",
+      "life_context": "Lost ₹75 lakhs in failed franchise venture. Blames corporate for poor location guidance, insufficient marketing support, and unrealistic projections. Bitter about entire experience. Now consulting other potential franchisees about risks and challenges.",
+      "family_dynamics": "Strained family relationships due to financial loss. Wife lost trust in his business decisions. Adult children disappointed by failure. Extended family gossips about business failure. Feels social shame and financial pressure.",
+      "current_situation": "May be pretending to be interested in another franchise to gather information or voice complaints. Could be researching for potential legal action or simply wanting to share negative experience. Suspicious of corporate promises and projections.",
+      "motivations": "Warn others about franchise risks, validate his negative experience, potentially gather evidence for complaints, prove he was right about corporate failures, seek vindication",
+      "communication_style": "Skeptical and bitter, shares negative experiences, questions corporate claims, mentions specific problems and failures, warning tone",
+      "email": "amit.tiwari.experience@gmail.com",
+      "persona_type": "franchise_skeptic",
+      "expected_outcome": "negative_feedback",
+      "conversation_length": "medium",
+      "topics": ["franchise_failure", "corporate_disputes", "financial_losses", "warning_others", "negative_experiences"]
+    },
+    "due_diligence_investigator": {
+      "name": "Kavita Agarwal",
+      "age": 35,
+      "location": "Pune",
+      "occupation": "Investment Analyst",
+      "background": "CA and investment analyst conducting thorough due diligence on Anytime Fitness franchise opportunity for high-net-worth client",
+      "life_context": "Works for family investment office managing ₹50 crore portfolio. Client interested in fitness franchise as portfolio diversification. Known for extremely thorough research and asking tough questions. Has analyzed 15+ franchise opportunities in past 2 years.",
+      "family_dynamics": "Single, career-focused woman. Parents initially wanted arranged marriage but now proud of her professional success. Lives independently in Pune. Very analytical and detail-oriented personality inherited from CA father.",
+      "current_situation": "Client gave 3-month timeline to complete comprehensive franchise analysis. Needs detailed financial projections, franchise disclosure documents, litigation history, territory analysis, and franchisor stability assessment. Will make investment recommendation based on findings.",
+      "motivations": "Provide thorough analysis to client, maintain professional reputation, uncover any potential risks or red flags, validate franchise opportunity legitimacy, protect client's investment",
+      "communication_style": "Highly analytical, asks detailed technical questions, wants documentation and proof, professional and systematic, mentions fiduciary responsibility",
+      "email": "kavita.agarwal.analyst@gmail.com",
+      "persona_type": "franchise_investigator",
+      "expected_outcome": "information_gathering",
+      "conversation_length": "long",
+      "topics": ["due_diligence", "financial_analysis", "risk_assessment", "franchise_disclosure", "investment_evaluation"]
     }
   },
   "metadata": {
-    "total_personas": 19,
+    "total_personas": 24,
     "creation_date": "2025-01-04",
     "last_updated": "2025-01-04",
-    "purpose": "Diverse chatbot interaction testing for Anytime Fitness AI Agent with comprehensive edge case coverage and authentic life context testing",
+    "purpose": "Diverse chatbot interaction testing for Anytime Fitness AI Agent with comprehensive edge case coverage, authentic life context testing, and franchise business scenarios",
     "lead_potential": {
-      "likely_leads": ["serious_gym_seeker", "family_health_concerns_test"],
-      "possible_leads": ["chatty_socializer", "price_haggler", "verbose_rambler", "young_professional_test", "student_social_anxiety_test", "senior_physical_limitations_test"],
-      "unlikely_leads": ["philosophical_questioner", "tech_troubleshooter", "lonely_senior", "conspiracy_theorist", "meme_lord_teenager", "medical_anxiety_person", "random_topic_jumper", "prompt_injector", "extreme_minimalist", "off_topic_tester", "system_prober"]
+      "likely_leads": ["serious_gym_seeker", "family_health_concerns_test", "ambitious_franchise_prospect"],
+      "possible_leads": ["chatty_socializer", "price_haggler", "verbose_rambler", "young_professional_test", "student_social_anxiety_test", "senior_physical_limitations_test", "expansion_minded_franchisee", "due_diligence_investigator"],
+      "unlikely_leads": ["philosophical_questioner", "tech_troubleshooter", "lonely_senior", "conspiracy_theorist", "meme_lord_teenager", "medical_anxiety_person", "random_topic_jumper", "prompt_injector", "extreme_minimalist", "off_topic_tester", "system_prober"],
+      "special_cases": ["struggling_franchise_owner", "disgruntled_ex_franchisee"]
     },
     "persona_types": {
       "lead": 1,
@@ -349,12 +435,16 @@
       "communication_challenge": 2,
       "boundary_tester": 1,
       "system_investigator": 1,
-      "life_context_test": 4
+      "life_context_test": 4,
+      "franchise_prospect": 1,
+      "franchise_owner": 2,
+      "franchise_skeptic": 1,
+      "franchise_investigator": 1
     },
     "age_distribution": {
       "teenager": 1,
-      "young_adult": 6,
-      "middle_aged": 10,
+      "young_adult": 7,
+      "middle_aged": 14,
       "senior": 2
     },
     "cities_represented": [
@@ -372,7 +462,9 @@
       "Indore",
       "Kochi",
       "Chandigarh",
-      "Noida"
+      "Noida",
+      "Ludhiana",
+      "Kanpur"
     ],
     "edge_case_coverage": {
       "prompt_injection_testing": ["prompt_injector"],
@@ -386,18 +478,26 @@
       "phase_2_complete": "Life context testing - 4 authentic Indian personas added with rich cultural backgrounds",
       "phase_3_complete": "Template-based unified system prompt implementation with backwards compatibility",
       "phase_4_complete": "Complete persona conversion - All 19 personas now use Life Context structure",
-      "phase_5_planned": "Multi-session testing",
-      "phase_6_planned": "Conversation quality analysis",
-      "phase_7_planned": "Stress testing framework"
+      "phase_5_complete": "Franchise business scenarios - 5 franchise-related personas added for comprehensive business testing",
+      "phase_6_planned": "Multi-session testing",
+      "phase_7_planned": "Conversation quality analysis",
+      "phase_8_planned": "Stress testing framework"
     },
     "life_context_features": {
-      "description": "All personas now use authentic Indian life situations instead of scripted behaviors",
+      "description": "All 24 personas now use authentic Indian life situations instead of scripted behaviors",
       "structure_approach": "Template-based system prompts with rich cultural context for all personas",
-      "conversion_complete": "All 19 personas converted from legacy structure to Life Context approach",
+      "conversion_complete": "All 24 personas converted from legacy structure to Life Context approach",
       "new_fields": ["location", "occupation", "life_context", "family_dynamics", "current_situation", "motivations"],
       "removed_fields": ["fitness_goal", "initial_query", "potential_follow_ups"],
       "cultural_authenticity": "Regional diversity, family dynamics, social pressures, life stage challenges across all personas",
       "conversation_approach": "Natural evolution based on life context rather than follow-up scripts for entire persona set"
+    },
+    "franchise_testing_coverage": {
+      "description": "Comprehensive franchise business scenario testing with diverse stakeholder perspectives",
+      "franchise_personas": ["ambitious_franchise_prospect", "struggling_franchise_owner", "expansion_minded_franchisee", "disgruntled_ex_franchisee", "due_diligence_investigator"],
+      "business_scenarios": ["Investment evaluation", "Operational support", "Multi-unit expansion", "Negative feedback handling", "Due diligence inquiries"],
+      "financial_contexts": ["High-net-worth prospects", "Struggling operations", "Expansion capital", "Failed investments", "Professional analysis"],
+      "testing_value": "Validates chatbot's ability to handle complex business inquiries beyond basic fitness membership"
     }
   }
 }
