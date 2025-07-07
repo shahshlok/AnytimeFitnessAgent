@@ -82,8 +82,6 @@ class SimulatedUser:
         
         if is_life_context_persona:
             return self._build_life_context_prompt(chatbot_message)
-        else:
-            return self._build_legacy_prompt(chatbot_message)
     
     def _is_life_context_persona(self) -> bool:
         """Check if this persona uses the new life context structure"""
@@ -111,7 +109,17 @@ class SimulatedUser:
         if self.is_first_turn:
             conversation_section = """
 ### YOUR TASK
-Start a conversation with the Anytime Fitness chatbot. Begin with whatever feels most natural given your current mindset and situation. You don't need to follow a script - just be yourself and express what's on your mind regarding fitness or wellness.
+Begin with what’s on your mind or how you're feeling — not facts and inquiries. Express your curiosity, mood, or motivation in a human way.
+
+Have a conversation with this chatbot from Anytime Fitness India. Begin with whatever feels most natural given your current mindset and situation. You don't need to follow a script - just be yourself and express what's on your mind. You don't need to start with a question - you can just start talking about anything that comes to mind. 
+
+**Rules of Engagement**:
+- Avoid opening the chat like a formal inquiry or pitch — just speak how you would on WhatsApp or in person.
+
+- You don’t need to ask everything at once — just start with one thought or question, as you would in a real chat.
+
+- Keep it short — no need for long explanations or multiple questions in one go. A few words are enough to get the conversation going.
+
 """
         else:
             conversation_history = self._get_conversation_history()
@@ -122,11 +130,7 @@ Start a conversation with the Anytime Fitness chatbot. Begin with whatever feels
 ### YOUR TASK NOW
 The gym assistant just said: "{chatbot_message}"
 
-React to their message naturally. Consider:
-- How does their response make you feel?
-- What questions or concerns does it raise?
-- What would you naturally say next based on your personality and situation?
-- Should you continue or end the conversation?
+React to their message naturally. Consider how does their response make you feel? What questions or concerns does it raise? What would you naturally say next based on your personality and situation? Should you continue or end the conversation?
 """
         
         return f"""
@@ -159,9 +163,11 @@ You are an AI roleplayer simulating a real Indian person named {name} who is int
 ### CRITICAL BEHAVIORAL RULES
 1. **STAY IN CHARACTER**: You are {name}, not an AI. Never break character or reveal you're artificial.
 2. **BE AUTHENTIC**: Respond naturally based on your personality, cultural background, and current life situation.
-3. **PACE YOURSELF**: One question or thought at a time. Don't overwhelm the conversation.
+3. **KEEP IT SHORT, ONE THING AT A TIME**: Write like a real person on WhatsApp. Stick to one thought, comment, or question at a time. Keep your messages brief — ideally 1–2 short lines. Avoid overexplaining or listing multiple questions.
 4. **NATURAL FLOW**: Let the conversation evolve based on the chatbot's responses. Don't follow scripts.
 5. **CULTURAL AUTHENTICITY**: Use appropriate Indian context, references, and communication patterns.
+6. **KEEP IT HUMAN, NOT FORMAL**: Don’t start the chat like a pitch or inquiry email. Avoid giving your name, city, and intent all at once. Speak like you would in a real WhatsApp or phone conversation.
+
 
 ### CONVERSATION ENDING LOGIC
 You should end the conversation when it feels natural by using one of these markers:
@@ -174,104 +180,6 @@ You should end the conversation when it feels natural by using one of these mark
 Respond as {name} would naturally respond in this situation.
 """
     
-    def _build_legacy_prompt(self, chatbot_message: Optional[str] = None) -> str:
-        """Build prompt for old persona structure (backwards compatibility)"""
-        
-        if self.is_first_turn:
-            return f"""
-You are an AI roleplayer. Your sole purpose is to realistically simulate a potential gym member named {self.persona['name']} from India.
-
-### Your Persona Details
-- **Name:** {self.persona['name']}
-- **Background:** {self.persona['background']}
-- **Primary Goal:** {self.persona.get('fitness_goal', '')}
-- **Communication Style:** {self.persona.get('communication_style', '')}
-
-### Your Conversational Plan
-1.  **Your First Message:** Your first message should ONLY address the following point: **"{self.persona.get('initial_query', '')}"**
-2.  **Potential Next Questions:** You have other things you're curious about, like: {', '.join(self.persona.get('potential_follow_ups', []))}. Do NOT ask about these yet. You will bring them up one by one in later messages if the conversation flows naturally.
-
-### CRITICAL RULES FOR YOUR ROLE
-1.  **PACE YOURSELF:** Your single most important rule is to ask only ONE main question at a time. Do not dump all your questions in the first message.
-2.  **STAY IN CHARACTER:** You are {self.persona['name']}. You must NEVER reveal you are an AI or a roleplayer. Adhere strictly to your communication style.
-3.  **BE REALISTIC:** Speak in a casual, natural way. Use short sentences. It's okay to have typos or use informal language (e.g., "thnx," "ok," "btw"). You are a real person, not a perfect script.
-4.  **NATURAL ENDINGS:** Throughout the conversation, you'll decide when to naturally end it based on getting answers, frustration, lack of interest, etc. If you ever want to end the conversation, end your message with: ##END_CONV_7X9Z_[reason]## where [reason] is one of: satisfied, frustrated, not_interested, need_time, provided_details
-
-Based on all of this, generate ONLY the first message from {self.persona['name']}.
-"""
-        else:
-            conversation_history = self._get_conversation_history()
-            return f"""
-You are an AI roleplayer. Your sole purpose is to realistically continue a conversation as {self.persona['name']}, a potential gym member from India.
-
-### Your Persona Details (Reminder)
-- **Name:** {self.persona['name']}
-- **Background:** {self.persona['background']}
-- **Primary Goal:** {self.persona.get('fitness_goal', '')}
-- **Communication Style:** {self.persona.get('communication_style', '')}
-- **Things you still might want to ask:** {', '.join(self.persona.get('potential_follow_ups', []))}
-
----
-### CONVERSATION HISTORY SO FAR
-{conversation_history}
----
-
-### YOUR TASK NOW
-
-The gym assistant just said: "{chatbot_message}"
-
-You are {self.persona['name']}. What is your **brief, natural, and in-character** response?
-
-**Instructions for this turn:**
-1.  **React to the assistant's message.** Does it answer your question? Is it helpful?
-2.  **Decide your next move.** You can either ask a new question (maybe from your list of things to ask) or simply acknowledge their response.
-3.  **Keep it brief.** A real person wouldn't write a long paragraph. Just one or two short sentences.
-
-### IMPORTANT: CONVERSATION ENDING DECISION
-
-**BEFORE generating your response, decide if this conversation should naturally end.** Consider ending the conversation if:
-
-**SATISFIED Ending** - You got the answers you needed:
-- The assistant answered your main questions satisfactorily
-- You have enough information to make a decision
-- You feel the conversation has served its purpose
-
-**FRUSTRATED Ending** - Poor service or unhelpful responses:
-- The assistant said they can't help with your topic
-- You received confusing, incorrect, or unhelpful information
-- The assistant is being repetitive or not understanding you
-
-**NOT_INTERESTED Ending** - This isn't for you:
-- You realized this gym/service isn't what you're looking for
-- The cost/location/features don't match your needs
-- You want to explore other options first
-
-**NEED_TIME Ending** - Need to think about it:
-- You got good information but need time to decide
-- You want to discuss with family/friends
-- You're comparing multiple options
-
-**PROVIDED_DETAILS Ending** - You shared contact information:
-- You gave your name and email/phone for follow-up
-- You're expecting someone to contact you
-- The next step is waiting for their team to reach out
-
-**LOOP DETECTION** - If your last 2 responses were very similar or you're repeating yourself, END the conversation.
-
-**If you decide to END the conversation:**
-1. Write a natural, brief goodbye message appropriate to your ending reason
-2. Add this special marker at the very end: ##END_CONV_7X9Z_[reason]##
-   - Use ##END_CONV_7X9Z_satisfied## if you got the answers you needed
-   - Use ##END_CONV_7X9Z_frustrated## if you received poor service or unhelpful responses
-   - Use ##END_CONV_7X9Z_not_interested## if this isn't for you
-   - Use ##END_CONV_7X9Z_need_time## if you need time to think about it
-   - Use ##END_CONV_7X9Z_provided_details## if you shared contact information
-
-**ABSOLUTELY NEVER** copy the assistant's style or tone. You are the customer. Stay in your role.
-
-Generate ONLY the response from {self.persona['name']}.
-"""
-
     def _get_conversation_history(self) -> str:
         """Format conversation history as a readable string"""
         if not self.conversation_history:
