@@ -70,14 +70,14 @@ graph TB
     C --> G
     C --> H
     
-    style A fill:#61DAFB
-    style B fill:#3178C6
-    style C fill:#009688
-    style D fill:#FF9800
-    style E fill:#336791
-    style F fill:#412991
-    style G fill:#FF5722
-    style H fill:#4CAF50
+    style A fill:#61DAFB,stroke:#333,stroke-width:1px
+    style B fill:#4A86E8,stroke:#333,stroke-width:1px
+    style C fill:#00C0A3,stroke:#333,stroke-width:1px
+    style D fill:#FF9E4A,stroke:#333,stroke-width:1px
+    style E fill:#E0F7FA,stroke:#336791,stroke-width:1px
+    style F fill:#FFFFFF,stroke:#412991,stroke-width:1px
+    style G fill:#FF6B35,stroke:#333,stroke-width:1px
+    style H fill:#10B981,stroke:#333,stroke-width:1px
 ```
 
 ### Data Flow Architecture
@@ -276,14 +276,14 @@ graph LR
         G --> H[AI Summaries]
     end
     
-    style A fill:#FF9800
-    style B fill:#4CAF50
-    style C fill:#2196F3
-    style D fill:#9C27B0
-    style E fill:#009688
-    style F fill:#336791
-    style G fill:#FF5722
-    style H fill:#607D8B
+    style A fill:#FF9E4A,stroke:#333,stroke-width:1px
+    style B fill:#C8E6C9,stroke:#333,stroke-width:1px
+    style C fill:#BBDEFB,stroke:#333,stroke-width:1px
+    style D fill:#D1C4E9,stroke:#333,stroke-width:1px
+    style E fill:#00C0A3,stroke:#333,stroke-width:1px
+    style F fill:#E3F2FD,stroke:#336791,stroke-width:1px
+    style G fill:#FFCCBC,stroke:#333,stroke-width:1px
+    style H fill:#F5F5F5,stroke:#333,stroke-width:1px
 ```
 
 24 diverse personas including:
@@ -311,11 +311,15 @@ flowchart TD
     H --> I[Create HubSpot Lead]
     I --> J[Lead Routing & Follow-up]
     
-    style A fill:#61DAFB
-    style B fill:#FF9800
-    style C fill:#4CAF50
-    style I fill:#FF5722
-    style J fill:#9C27B0
+    style A fill:#61DAFB,stroke:#333,stroke-width:1px
+    style B fill:#FF9E4A,stroke:#333,stroke-width:1px
+    style C fill:#34D399,stroke:#333,stroke-width:1px
+    style E fill:#34D399,stroke:#333,stroke-width:1px
+    style F fill:#34D399,stroke:#333,stroke-width:1px
+    style G fill:#34D399,stroke:#333,stroke-width:1px
+    style H fill:#34D399,stroke:#333,stroke-width:1px
+    style I fill:#FF6B35,stroke:#333,stroke-width:1px
+    style J fill:#EDE7F6,stroke:#8B5CF6,stroke-width:1px
 ```
 
 - **Progressive Qualification** - 5-phase lead nurturing
@@ -416,27 +420,7 @@ We welcome contributions! Please follow these guidelines:
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 📞 Support & Contact
 
-- **Developer**: Shlok Shah
-- **GitHub**: [shahshlok](https://github.com/shahshlok)
-- **Project Repository**: [AnytimeFitnessAgent](https://github.com/shahshlok/AnytimeFitnessAgent)
-
-## 🏆 Technical Highlights
-
-This project demonstrates:
-
-- **🏗️ Modern Architecture** - Microservices with React + FastAPI
-- **🤖 Advanced AI Integration** - OpenAI Responses API with function calling
-- **📊 Real-Time Analytics** - Live dashboards with comprehensive KPIs
-- **🧪 Automated Testing** - AI-powered personas for realistic testing
-- **🔄 CRM Integration** - Seamless HubSpot lead generation
-- **🎯 Production-Ready** - Docker, environment configs, error handling
-- **📈 Scalable Design** - Async architecture with database optimization
-- **🔒 Security Focus** - Input validation, CORS protection, secure configs
-
----
-
-**Built with ❤️ for Anytime Fitness India** | **Powered by AI** | **Designed for Scale**
+**Built with ❤️ by Shlok Shah** | **Powered by AI** | **Designed for Scale**
 
 *This project showcases modern full-stack development, AI integration, and enterprise-grade software engineering practices.*
