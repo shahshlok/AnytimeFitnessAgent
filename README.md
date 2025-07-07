@@ -9,24 +9,6 @@
 
 > **A next-generation AI-powered customer engagement platform** for Anytime Fitness India, featuring intelligent conversation management, real-time analytics, automated lead generation, and comprehensive testing infrastructure.
 
-## 🖼️ Application Screenshots
-
-### Chat Interface
-![Chat Interface](screenshots/chat-interface.png)
-*Modern React 19 chat interface with voice and text input capabilities*
-
-### Analytics Dashboard
-![Analytics Dashboard](screenshots/analytics-dashboard.png)
-*Real-time analytics dashboard with comprehensive KPIs and data visualization*
-
-### Voice Processing
-![Voice Processing](screenshots/voice-processing.png)
-*Real-time speech-to-text with intelligent silence detection*
-
-### Lead Generation
-![Lead Generation](screenshots/lead-generation.png)
-*Automated HubSpot CRM integration with progressive qualification*
-
 ## ✨ Core Capabilities
 
 - **🎯 Intelligent Conversational AI** - GPT-4.1-mini powered chatbot with context-aware responses
@@ -422,5 +404,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 
 **Built with ❤️ by Shlok Shah** | **Powered by AI** | **Designed for Scale**
-
-*This project showcases modern full-stack development, AI integration, and enterprise-grade software engineering practices.*
