@@ -77,7 +77,7 @@ sequenceDiagram
     Frontend->>Backend: POST /chat
     Backend->>OpenAI: Transcribe audio (if voice)
     OpenAI-->>Backend: Transcription text
-    Backend->>OpenAI: Chat completion with context
+    Backend->>OpenAI: Responses API
     OpenAI-->>Backend: AI response
     Backend->>Database: Store conversation
     
