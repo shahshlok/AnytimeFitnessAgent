@@ -7,3 +7,6 @@ Scraping Scripts/
 /venv
 CLAUDE.md
 .env.prod
+.mypy_cache
+.ropeproject
+.idea
